@@ -1,0 +1,164 @@
+[
+  {
+    "id": "two-minute-start",
+    "title": "The 2-minute start",
+    "summary": "Commit to only two minutes. Starting is the hard part; permission to stop after two minutes lowers the barrier.",
+    "energy": [1, 5],
+    "tags": ["start", "writing", "study", "coding", "cleaning", "admin", "any"],
+    "keywords": "begin start stuck cannot start procrastinate tiny two minutes",
+    "first_steps": ["Set a 2-minute timer and only {verb} for that long", "Do the very first physical action: {open}"]
+  },
+  {
+    "id": "make-it-ugly",
+    "title": "Make it ugly on purpose",
+    "summary": "Perfectionism blocks starts. Aim for a deliberately bad first draft that nobody will see.",
+    "energy": [2, 5],
+    "tags": ["writing", "essay", "report", "design", "creative"],
+    "keywords": "perfect perfectionism draft essay write blank page report assignment",
+    "first_steps": ["Write one messy sentence about {topic}, typos allowed", "Type three bullet points about {topic}, even bad ones"]
+  },
+  {
+    "id": "body-doubling",
+    "title": "Body doubling",
+    "summary": "Working alongside another person, in the room or on a call, makes starting easier for many ADHD brains.",
+    "energy": [2, 5],
+    "tags": ["study", "admin", "cleaning", "any"],
+    "keywords": "alone lonely focus company friend call library together",
+    "first_steps": ["Message one friend: \"Want to sit on a call while we both work?\"", "Open a silent study-with-me video and keep it beside your work"]
+  },
+  {
+    "id": "shrink-the-step",
+    "title": "Shrink the step until it feels silly",
+    "summary": "If a step still feels heavy, make it smaller. A step that feels almost too easy is the right size.",
+    "energy": [1, 3],
+    "tags": ["any", "start"],
+    "keywords": "too big overwhelm overwhelmed huge heavy massive daunting",
+    "first_steps": ["Just {open}. Nothing else yet", "Put your hand on the mouse and look at the {thing} for ten seconds"]
+  },
+  {
+    "id": "task-landing-pad",
+    "title": "Set up a landing pad",
+    "summary": "Prepare the environment first: open the file, clear one corner, fill a water bottle. Setup counts as starting.",
+    "energy": [1, 4],
+    "tags": ["study", "coding", "writing", "admin", "any"],
+    "keywords": "setup prepare desk messy environment open file",
+    "first_steps": ["{open} and leave it on screen", "Clear just the space in front of your keyboard"]
+  },
+  {
+    "id": "temptation-bundling",
+    "title": "Pair it with something you enjoy",
+    "summary": "Bundle the task with a small pleasure such as a favourite playlist, drink or snack, to add dopamine.",
+    "energy": [2, 5],
+    "tags": ["cleaning", "admin", "study", "boring"],
+    "keywords": "boring dull tedious hate motivation dopamine music",
+    "first_steps": ["Start one favourite song, then {verb} until it ends", "Make a drink you like and bring it to the {thing}"]
+  },
+  {
+    "id": "question-first",
+    "title": "Start with a question, not an answer",
+    "summary": "Turn the task into a curious question. Questions are easier to approach than demands.",
+    "energy": [2, 5],
+    "tags": ["study", "research", "essay", "reading"],
+    "keywords": "research understand confused don't know where to start topic",
+    "first_steps": ["Write one question you have about {topic}", "Read only the headings of the {thing}"]
+  },
+  {
+    "id": "first-line-only",
+    "title": "Only the first line",
+    "summary": "Promise yourself only the title or first line. The rest is optional.",
+    "energy": [1, 4],
+    "tags": ["writing", "essay", "email", "report", "coding"],
+    "keywords": "email write reply message essay title first line",
+    "first_steps": ["Type only the title of the {thing}", "Write only the first line of the {thing}, any quality"]
+  },
+  {
+    "id": "externalise",
+    "title": "Get it out of your head",
+    "summary": "Working memory is limited. Brain-dump everything onto paper so your head has room to choose one thing.",
+    "energy": [1, 5],
+    "tags": ["overwhelm", "planning", "any"],
+    "keywords": "too much everything so many tasks overwhelmed thoughts racing list",
+    "first_steps": ["Write every task in your head on one page, no order needed", "Circle the one item that feels smallest"]
+  },
+  {
+    "id": "transition-ritual",
+    "title": "A tiny transition ritual",
+    "summary": "Switching tasks is hard. A short, repeatable ritual such as standing up, a sip of water or three breaths signals a change.",
+    "energy": [1, 5],
+    "tags": ["switching", "any"],
+    "keywords": "switch switching distracted tabs scrolling phone change task transition",
+    "first_steps": ["Stand up, take one sip of water, sit back down", "Close one tab you don't need right now"]
+  },
+  {
+    "id": "reading-chunk",
+    "title": "Read one paragraph",
+    "summary": "For readings, commit to one paragraph or one page, then decide again.",
+    "energy": [1, 4],
+    "tags": ["reading", "study"],
+    "keywords": "read reading chapter textbook paper article pages notes",
+    "first_steps": ["Read only the first paragraph of the {thing}", "Look at the pictures or diagrams in the {thing} first"]
+  },
+  {
+    "id": "code-smallest-change",
+    "title": "Smallest runnable change",
+    "summary": "For code, aim for one tiny change you can run: a print statement, one function name, one failing test.",
+    "energy": [2, 5],
+    "tags": ["coding"],
+    "keywords": "code coding bug program project app function assignment debug",
+    "first_steps": ["Open the project and run it once, just to see where it is", "Write the name of one function you'll need, nothing inside it"]
+  },
+  {
+    "id": "cleaning-one-zone",
+    "title": "One small zone",
+    "summary": "Pick one tiny zone, such as one shelf or five items, instead of the whole room.",
+    "energy": [1, 4],
+    "tags": ["cleaning"],
+    "keywords": "clean cleaning room tidy laundry dishes mess",
+    "first_steps": ["Pick up five things and put them where they live", "Clear just one corner of the desk"]
+  },
+  {
+    "id": "admin-gather",
+    "title": "Gather before you do",
+    "summary": "Admin tasks feel heavy because of hidden sub-steps. First just gather what you need into one place.",
+    "energy": [1, 4],
+    "tags": ["admin", "forms"],
+    "keywords": "form forms bill pay apply application documents admin fees bank",
+    "first_steps": ["Open the {thing} and read only the first heading", "Put every document you need for the {thing} in one folder"]
+  },
+  {
+    "id": "low-spoon-mode",
+    "title": "Low-spoon mode",
+    "summary": "When energy is very low, the kindest step may be a tiny one, or rest. Both count.",
+    "energy": [1, 2],
+    "tags": ["any", "rest", "low"],
+    "keywords": "tired exhausted no energy burnout drained sleepy sick",
+    "first_steps": ["Just write the task's name on a sticky note for later", "Rest for 5 minutes first, then decide"]
+  },
+  {
+    "id": "future-self-note",
+    "title": "Leave a note for future you",
+    "summary": "If now isn't the time, write one sentence about where to start next time. This reduces tomorrow's startup cost.",
+    "energy": [1, 3],
+    "tags": ["any", "stop"],
+    "keywords": "later tomorrow stop pause not today",
+    "first_steps": ["Write one sentence: \"Next time, start by...\"", "Bookmark the {thing} so it's one click away"]
+  },
+  {
+    "id": "timer-pomodoro-lite",
+    "title": "Gentle focus sprint",
+    "summary": "A short sprint (5 to 10 minutes) with a built-in break. Short enough to feel doable on a hard day.",
+    "energy": [3, 5],
+    "tags": ["study", "writing", "coding", "any"],
+    "keywords": "focus sprint timer pomodoro concentrate",
+    "first_steps": ["Set a 5-minute timer and {verb} until it rings", "Pick one tiny goal for the next 5 minutes"]
+  },
+  {
+    "id": "exam-revision-recall",
+    "title": "Recall, don't reread",
+    "summary": "For revision, try recalling one thing from memory before reading. It is active, quick and gives an early win.",
+    "energy": [2, 5],
+    "tags": ["study", "exam"],
+    "keywords": "exam test revise revision study quiz memorize",
+    "first_steps": ["Write down one thing you remember about {topic}", "Answer one practice question about {topic}, even roughly"]
+  }
+]
