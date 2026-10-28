@@ -3,6 +3,27 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, Check, ChevronsDown, Info, Loader2, Shuffle, SkipForward } from 'lucide-react'
 import { Screen, TiltCard } from '../components/ui.jsx'
 
+// Explainable retrieval: shows which signals made this strategy the best fit.
+function Why({ strategy, retrieval }) {
+  const w = strategy.why
+  return (
+    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 overflow-hidden">
+      <p className="text-sm text-slate-300">{strategy.summary}</p>
+      {w && (
+        <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
+          {w.meaning != null && <span className="chip border-violet-400/40 text-violet-200">Meaning match {Math.round(w.meaning * 100)}%</span>}
+          {w.keywords.length > 0 && <span className="chip border-sky-400/40 text-sky-200">Words: {w.keywords.join(', ')}</span>}
+          {w.task_types.map((t) => <span key={t} className="chip border-teal-400/40 text-teal-200">Task: {t}</span>)}
+          {w.energy_fit && <span className="chip border-amber-300/40 text-amber-200">Fits your spoons</span>}
+          {w.personal > 0 && <span className="chip border-emerald-400/40 text-emerald-200">Helped you before</span>}
+          {w.personal < 0 && <span className="chip border-slate-400/40 text-slate-300">Ranked lower: skipped before</span>}
+        </div>
+      )}
+      <p className="mt-2 text-[11px] text-slate-500">Retrieved by {retrieval === 'hybrid' ? 'hybrid search (meaning + keywords)' : 'keyword search'} from 18 neurodivergent coping strategies.</p>
+    </motion.div>
+  )
+}
+
 // Shows exactly ONE step. The user chooses what happens next; nothing is forced.
 export default function Step({ result, index, phase, loading, onDone, onSmaller, onChange, onSkip, onNext, onMore, onStop, onBack }) {
   const [why, setWhy] = useState(false)
@@ -27,7 +48,7 @@ export default function Step({ result, index, phase, loading, onDone, onSmaller,
                   <button onClick={() => setWhy((w) => !w)} className="chip hover:bg-white/10" aria-expanded={why}>
                     <Info className="h-3.5 w-3.5" /> Strategy: {result.strategy.title}
                   </button>
-                  {why && <p className="mt-2 text-sm text-slate-300">{result.strategy.summary}</p>}
+                  {why && <Why strategy={result.strategy} retrieval={result.retrieval} />}
                 </div>
               )}
             </TiltCard>

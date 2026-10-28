@@ -13,13 +13,25 @@ function ago(ts) {
   return h < 24 ? `${h} h ago` : new Date(ts).toLocaleDateString()
 }
 
-export default function Wins({ wins }) {
+export default function Wins({ wins, feedback = {} }) {
+  const helps = Object.entries(feedback).filter(([, v]) => v.done > 0).sort((a, b) => b[1].done - a[1].done).slice(0, 4)
   return (
     <Screen className="pt-[34vh]">
       <h1 className="font-display text-3xl font-extrabold sm:text-4xl">
         Your <span className="text-gradient">kind wins</span>
       </h1>
       <p className="mt-2 text-slate-300">No streaks. Nothing to break. Starts and rests both count.</p>
+      {helps.length > 0 && (
+        <div className="glass mt-5 p-4">
+          <p className="font-display font-bold">What seems to <span className="text-gradient-cool">help you</span></p>
+          <p className="text-xs text-slate-400">Kindling suggests these a little more often. Learned on this device only.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {helps.map(([id, v]) => (
+              <span key={id} className="chip border-emerald-400/40 text-emerald-100">{v.title} · {v.done}×</span>
+            ))}
+          </div>
+        </div>
+      )}
       {wins.length === 0 ? (
         <div className="glass mt-6 p-6 text-center text-slate-300">
           Your garden is ready. Every tiny start you make grows here.

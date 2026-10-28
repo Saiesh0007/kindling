@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import Scene from './three/Scene.jsx'
 import { Dock, Screen, TiltCard } from './components/ui.jsx'
 import CheckIn from './components/CheckIn.jsx'
+import { CameraPill, LensCard } from './components/Lens.jsx'
 import Onboarding from './screens/Onboarding.jsx'
 import Home from './screens/Home.jsx'
 import Dump from './screens/Dump.jsx'
@@ -13,11 +14,13 @@ import Settings from './screens/Settings.jsx'
 import Support from './screens/Support.jsx'
 import { health, sequence } from './lib/api.js'
 import { load, save, wipeAll } from './lib/store.js'
+import { useLens } from './lib/lens.js'
 import { clearExtensionData, inExtension, simulateSignal, syncSignals } from './lib/ext.js'
 
 const DEFAULT_PREFS = {
   onboarded: false,
-  signals: { enabled: false, tabs: false, pause: false },
+  signals: { enabled: false, tabs: false, pause: false, lens: false },
+  lensWindow: 60,
   pausedUntil: 0,
   snoozedUntil: 0,
   readable: false,
@@ -26,11 +29,16 @@ const DEFAULT_PREFS = {
   useLLM: true,
 }
 const COOLDOWN_MS = 30 * 60_000
+const LENS_SCREENS = ['home', 'wins', 'settings', 'dump']
+
+// On-device learning: how well each strategy has worked for this user, from -1 to 1.
+const scoreOf = ({ done = 0, skipped = 0 }) => (done - skipped) / (done + skipped + 1)
 
 export default function App() {
   const [ready, setReady] = useState(false)
   const [prefs, setPrefs] = useState(DEFAULT_PREFS)
   const [wins, setWins] = useState([])
+  const [feedback, setFeedback] = useState({})
   const [screen, setScreen] = useState('home')
   const [energy, setEnergy] = useState(3)
   const [task, setTask] = useState('')
@@ -51,8 +59,9 @@ export default function App() {
       const p = { ...DEFAULT_PREFS, ...(await load('prefs', {})) }
       setPrefs(p)
       setWins(await load('wins', []))
+      setFeedback(await load('feedback', {}))
       setReady(true)
-      if (location.hash === '#checkin') setCheckIn('demo')
+      if (location.hash === '#checkin') setCheckIn({ reason: 'demo' })
       if (location.hash === '#nudge') setScreen('home')
     })()
     health().then(setEngine)
@@ -81,12 +90,23 @@ export default function App() {
     })
   }
 
+  const rate = (strategy, key) => {
+    if (!strategy || strategy.id === 'offline') return
+    setFeedback((f) => {
+      const cur = f[strategy.id] || { title: strategy.title, done: 0, skipped: 0 }
+      const next = { ...f, [strategy.id]: { ...cur, title: strategy.title, [key]: cur[key] + 1 } }
+      save('feedback', next)
+      return next
+    })
+  }
+  const scores = () => Object.fromEntries(Object.entries(feedback).map(([id, v]) => [id, scoreOf(v)]))
+
   const go = (s) => { setScreen(s); setRestDone(null); window.scrollTo({ top: 0 }) }
 
   // ---- task sequencing ----
   const ask = async (mode, extra = {}) => {
     setLoading(mode === 'start' ? true : mode)
-    const res = await sequence({ task, energy, mode, use_llm: prefs.useLLM, ...extra })
+    const res = await sequence({ task, energy, mode, use_llm: prefs.useLLM, feedback: scores(), ...extra })
     setLoading(false)
     return res
   }
@@ -94,7 +114,7 @@ export default function App() {
   const submitDump = async (text) => {
     setTask(text)
     setLoading(true)
-    const res = await sequence({ task: text, energy, mode: 'start', use_llm: prefs.useLLM })
+    const res = await sequence({ task: text, energy, mode: 'start', use_llm: prefs.useLLM, feedback: scores() })
     setLoading(false)
     if (res.kind === 'support') { setResult(res); go('support'); return }
     setResult(res)
@@ -107,11 +127,15 @@ export default function App() {
   const onDone = () => {
     const step = result.steps[index]
     addWin(index === 0 ? `Started: ${step}` : step, index === 0 ? 'start' : 'step')
+    rate(result.strategy, 'done')
     setBurst((b) => b + 1)
     setPhase('done')
   }
   const onNext = () => { setIndex((i) => i + 1); setPhase('step') }
-  const onSkip = () => (index < result.steps.length - 1 ? setIndex((i) => i + 1) : setPhase('skipped'))
+  const onSkip = () => {
+    rate(result.strategy, 'skipped')
+    return index < result.steps.length - 1 ? setIndex((i) => i + 1) : setPhase('skipped')
+  }
   const onSmaller = async () => {
     const res = await ask('smaller', { current_step: result.steps[index], exclude: used })
     setResult({ ...res, steps: [...res.steps, ...result.steps.slice(index + 1)] })
@@ -119,6 +143,7 @@ export default function App() {
     setPhase('step')
   }
   const onChange = async () => {
+    if (phase === 'step') rate(result.strategy, 'skipped')
     const res = await ask('change', { current_step: result.steps[index], exclude: used })
     setResult(res)
     if (res.strategy) setUsed((u) => [...u, res.strategy.id])
@@ -128,7 +153,17 @@ export default function App() {
   const onMore = onChange
 
   // ---- check-ins ----
-  const simulate = () => (inExtension && prefs.signals.enabled ? simulateSignal() : setCheckIn('demo'))
+  const simulate = () => (inExtension && prefs.signals.enabled ? simulateSignal() : setCheckIn({ reason: 'demo' }))
+  const quiet = () => prefs.pausedUntil > Date.now() || prefs.snoozedUntil > Date.now()
+  const lensOn = !inExtension && prefs.onboarded && prefs.signals.enabled && prefs.signals.lens && prefs.pausedUntil <= Date.now()
+  const lens = useLens(lensOn, {
+    windowSec: prefs.lensWindow,
+    onStuck: ({ reasons }) => {
+      if (quiet() || checkIn || !LENS_SCREENS.includes(screen) || restDone) return
+      setCheckIn({ reason: 'lens', reasons })
+    },
+  })
+  const stopLens = () => update({ signals: { ...prefs.signals, lens: false } })
   const checkInYes = () => { setCheckIn(null); go('home') }
   const checkInLater = () => { setCheckIn(null); update({ snoozedUntil: Date.now() + COOLDOWN_MS }) }
   const checkInPause = () => {
@@ -141,6 +176,7 @@ export default function App() {
     await wipeAll()
     clearExtensionData()
     setWins([])
+    setFeedback({})
     setPrefs({ ...DEFAULT_PREFS })
     go('home')
   }
@@ -179,12 +215,13 @@ export default function App() {
   } else if (screen === 'support' && result) {
     view = <Support key="support" message={result.message} onBack={() => go('rest')} />
   } else if (screen === 'wins') {
-    view = <Wins key="wins" wins={wins} />
+    view = <Wins key="wins" wins={wins} feedback={feedback} />
   } else if (screen === 'settings') {
     view = <Settings key="settings" prefs={prefs} update={update} engine={engine} onWipe={wipe} />
   } else {
     view = <Home key="home" energy={energy} setEnergy={setEnergy} engine={engine} onSimulate={simulate}
-      onStart={() => go('dump')} onRest={() => go('rest')} />
+      onStart={() => go('dump')} onRest={() => go('rest')}
+      lens={<LensCard lens={lens} windowSec={prefs.lensWindow} onStop={stopLens} />} />
   }
 
   return (
@@ -193,7 +230,8 @@ export default function App() {
       <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 z-[1] h-2/3 bg-gradient-to-t from-night-950 via-night-950/70 to-transparent" />
       <AnimatePresence mode="wait">{view}</AnimatePresence>
       {prefs.onboarded && !restDone && <Dock screen={['home', 'wins', 'settings'].includes(screen) ? screen : 'home'} go={go} />}
-      <CheckIn open={!!checkIn} reason={checkIn} onYes={checkInYes} onLater={checkInLater} onPause={checkInPause} />
+      {prefs.onboarded && <CameraPill status={lens.status} onStop={stopLens} />}
+      <CheckIn open={!!checkIn} reason={checkIn?.reason} reasons={checkIn?.reasons} onYes={checkInYes} onLater={checkInLater} onPause={checkInPause} />
     </>
   )
 }

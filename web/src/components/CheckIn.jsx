@@ -5,10 +5,11 @@ const REASONS = {
   tabs: 'You have been hopping between a lot of tabs.',
   pause: 'There was a long pause on the same screen.',
   demo: 'A possible stuck moment was noticed.',
+  lens: 'The focus lens noticed a possible stuck moment.',
 }
 
 // The gentle check-in. One question, three equal-weight answers, dismissible with Esc or the X.
-export default function CheckIn({ open, reason, onYes, onLater, onPause }) {
+export default function CheckIn({ open, reason, reasons, onYes, onLater, onPause }) {
   return (
     <AnimatePresence>
       {open && (
@@ -41,6 +42,11 @@ export default function CheckIn({ open, reason, onYes, onLater, onPause }) {
             <p className="mt-2 text-slate-300">
               {REASONS[reason] || REASONS.demo} That might mean nothing at all. Want a tiny nudge?
             </p>
+            {reasons?.length > 0 && (
+              <p className="mt-2 rounded-2xl bg-white/5 p-3 text-sm text-slate-300">
+                <span className="font-semibold text-slate-200">Why I asked: </span>for the last little while, {reasons.join(', ')}.
+              </p>
+            )}
             <div className="mt-6 grid gap-2">
               <button autoFocus className="btn-primary" onClick={onYes}>Yes, a tiny nudge</button>
               <div className="grid grid-cols-2 gap-2">

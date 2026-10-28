@@ -8,7 +8,7 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 }
 
-export default function Home({ energy, setEnergy, onStart, onRest, onSimulate, engine }) {
+export default function Home({ energy, setEnergy, onStart, onRest, onSimulate, engine, lens }) {
   const [lowPrompt, setLowPrompt] = useState(false)
   const start = () => (energy === 1 && !lowPrompt ? setLowPrompt(true) : onStart())
 
@@ -54,6 +54,7 @@ export default function Home({ energy, setEnergy, onStart, onRest, onSimulate, e
           <p className="text-sm font-semibold opacity-85">Guided, guilt-free</p>
         </motion.button>
       </div>
+      {lens}
     </Screen>
   )
 }

@@ -7,7 +7,11 @@ cd /d "%ROOT%backend"
 if not exist .venv (
   echo Setting up Python environment...
   py -3.11 -m venv .venv 2>nul || py -3.12 -m venv .venv 2>nul || python -m venv .venv
-  .venv\Scripts\python -m pip install -q -r requirements.txt
+)
+.venv\Scripts\python -m pip install -q --disable-pip-version-check -r requirements.txt
+if not exist .models (
+  echo Downloading the small embedding model, about 90 MB, once...
+  .venv\Scripts\python -m app.prefetch
 )
 
 cd /d "%ROOT%web"

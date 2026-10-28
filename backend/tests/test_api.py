@@ -58,3 +58,23 @@ def test_crisis_routes_to_support():
 def test_soften_removes_pressure_words():
     out = soften("You should just finish it, don't be lazy")
     assert "should" not in out and "just" not in out and "lazy" not in out
+
+
+def test_feedback_boosts_a_strategy_that_helped():
+    base = post()["strategy"]["id"]
+    target = "question-first" if base != "question-first" else "make-it-ugly"
+    boosted = post(feedback={target: 1.0, base: -1.0})
+    assert boosted["strategy"]["id"] == target
+    assert boosted["strategy"]["why"]["personal"] == 1.0
+
+
+def test_semantic_retrieval_matches_meaning():
+    from app.main import index
+    index.semantic.warm(background=False)
+    if not index.semantic.ready:
+        import pytest
+        pytest.skip("embedding model not downloaded")
+    data = post(task="I keep doomscrolling on my phone instead of studying")
+    assert data["retrieval"] == "hybrid"
+    assert data["strategy"]["id"] == "transition-ritual"
+    assert data["strategy"]["why"]["meaning"] > 0.3

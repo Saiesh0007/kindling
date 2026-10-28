@@ -1,4 +1,5 @@
 """Kindling API. Stateless: requests are processed in memory and never stored or logged."""
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
@@ -12,7 +13,16 @@ from . import sequencer
 from .guardrails import SUPPORT_MESSAGE, is_crisis, is_overwhelmed
 from .rag import StrategyIndex
 
-app = FastAPI(title="Kindling API", version="1.0.0")
+index = StrategyIndex()
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    index.semantic.warm(background=True)  # load the embedding model without delaying startup
+    yield
+
+
+app = FastAPI(title="Kindling API", version="1.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"^(chrome-extension://.*|http://(localhost|127\.0\.0\.1)(:\d+)?)$",
@@ -20,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-index = StrategyIndex()
+
 
 VALIDATION = {
     1: "Energy is really low right now, so we'll keep this tiny. Rest is always an option too.",
@@ -39,12 +49,24 @@ class SequenceRequest(BaseModel):
     current_step: str | None = None
     exclude: list[str] = []
     use_llm: bool = True
+    # On-device learning: strategy id -> -1..1 (how well it has worked for this user). Never stored here.
+    feedback: dict[str, float] = {}
+
+
+class Why(BaseModel):
+    keywords: list[str]
+    meaning: float | None
+    task_types: list[str]
+    energy_fit: bool
+    personal: float
+    score: float
 
 
 class Strategy(BaseModel):
     id: str
     title: str
     summary: str
+    why: Why | None = None
 
 
 class SequenceResponse(BaseModel):
@@ -53,6 +75,7 @@ class SequenceResponse(BaseModel):
     steps: list[str]
     strategy: Strategy | None
     engine: str
+    retrieval: str
     overwhelmed: bool
 
 
@@ -60,7 +83,8 @@ class SequenceResponse(BaseModel):
 async def health():
     available = await sequencer.llm_available(wait=True)
     return {"status": "ok", "llm": available, "model": sequencer.MODEL if available else None,
-            "engine": f"ollama:{sequencer.MODEL}" if available else "built-in"}
+            "engine": f"ollama:{sequencer.MODEL}" if available else "built-in",
+            "retrieval": index.mode, "embedder": "all-MiniLM-L6-v2" if index.semantic.ready else None}
 
 
 @app.get("/api/strategies")
@@ -72,19 +96,19 @@ def strategies():
 async def sequence(req: SequenceRequest):
     if is_crisis(req.task):
         return SequenceResponse(kind="support", message=SUPPORT_MESSAGE, steps=[], strategy=None,
-                                engine="guardrail", overwhelmed=True)
+                                engine="guardrail", retrieval=index.mode, overwhelmed=True)
 
     overwhelmed = is_overwhelmed(req.task)
     energy = min(req.energy, 2) if overwhelmed and req.mode == "start" else req.energy
     exclude = set(req.exclude)
-    hits = index.search(req.task, energy, k=3, exclude=exclude)
+    hits = index.rank(req.task, energy, k=3, exclude=exclude, feedback=req.feedback)
     if not hits:  # every strategy excluded: start over
-        hits = index.search(req.task, energy, k=3)
+        hits = index.rank(req.task, energy, k=3, feedback=req.feedback)
+    strategy, why = hits[0]
     if req.mode == "smaller" and req.exclude:
         # Keep the same strategy, make the step smaller.
-        strategy = index.get(req.exclude[-1]) or hits[0]
-    else:
-        strategy = hits[0]
+        same = index.rank(req.task, energy, k=len(index.docs), feedback=req.feedback)
+        strategy, why = next(((d, w) for d, w in same if d["id"] == req.exclude[-1]), (strategy, why))
 
     result = None
     if req.use_llm and await sequencer.llm_available():
@@ -104,8 +128,8 @@ async def sequence(req: SequenceRequest):
         message = "Different angle, same gentle pace."
 
     return SequenceResponse(kind="steps", message=message, steps=steps,
-                            strategy=Strategy(id=strategy["id"], title=strategy["title"], summary=strategy["summary"]),
-                            engine=engine, overwhelmed=overwhelmed)
+                            strategy=Strategy(id=strategy["id"], title=strategy["title"], summary=strategy["summary"], why=Why(**why)),
+                            engine=engine, retrieval=index.mode, overwhelmed=overwhelmed)
 
 
 # Serve the built web app (web/dist) from the same server for a one-command demo.

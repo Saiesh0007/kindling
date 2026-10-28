@@ -55,14 +55,23 @@ FILLER = {"my", "the", "a", "an", "this", "to", "need", "have", "finish", "start
           "of", "reply", "on", "about", "clean", "pay", "revise", "some", "that", "i", "big", "huge"}
 
 
+NOT_TOPICS = {"phone", "laptop", "computer", "it", "this", "that", "social media", "instagram", "youtube", "tiktok",
+              "reddit", "netflix", "bed", "time", "me", "them", "him", "her"}
+STOP_AFTER = r"due|by|before|tomorrow|today|tonight|and|but|instead|because|while|since|when|so|or|which|that|i|it's|but"
+
+
 def _thing(text: str, types: list[str]) -> tuple[str, str]:
     """Best-effort guess at the object ('history essay') and topic ('french revolution')."""
     low = text.lower()
     topic = None
     for prep in ("on|about", "for"):
-        m = re.search(rf"\b(?:{prep})\s+(?:my\s+|the\s+)?([a-z0-9][\w\s'-]{{2,40}}?)(?:\s+(?:due|by|before|tomorrow|today|and|but)\b|[.,!?]|$)", low)
-        if m:
-            topic = m.group(1).strip()
+        pattern = rf"\b(?:{prep})\s+(?:my\s+|the\s+)?([a-z0-9][\w\s'-]{{2,40}}?)(?:\s+(?:{STOP_AFTER})\b|[.,!?]|$)"
+        for m in re.finditer(pattern, low):
+            cand = m.group(1).strip()
+            if cand not in NOT_TOPICS and not cand.endswith("ing"):
+                topic = cand
+                break
+        if topic:
             break
     for t in types:
         for kw in OBJECTS.get(t, []):
@@ -70,9 +79,9 @@ def _thing(text: str, types: list[str]) -> tuple[str, str]:
             if mm:
                 adj = (mm.group(1) or "").strip()
                 thing = kw if adj in FILLER else f"{adj} {kw}"
-                return thing, topic or thing
+                return thing, topic if topic and topic != thing else f"your {thing}"
     thing = NOUNS.get(types[0], "task") if types else "task"
-    return thing, topic or thing
+    return thing, topic if topic and topic != thing else f"your {thing}"
 
 
 def builtin_steps(text: str, energy: int, strategy: dict, mode: str, current: str | None) -> list[str]:

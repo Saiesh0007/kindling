@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Feather, ShieldCheck, Footprints } from 'lucide-react'
 import { Screen, TiltCard, Toggle } from '../components/ui.jsx'
+import { inExtension } from '../lib/ext.js'
 
 const POINTS = [
   [Footprints, 'One tiny step at a time', 'Never a long to-do list. Steps shrink to fit your energy.'],
@@ -10,7 +11,7 @@ const POINTS = [
 
 export default function Onboarding({ prefs, onDone }) {
   const [signals, setSignals] = useState(prefs.signals)
-  const set = (k, v) => setSignals((s) => ({ ...s, [k]: v, ...(k === 'enabled' && !v ? { tabs: false, pause: false } : {}) }))
+  const set = (k, v) => setSignals((s) => ({ ...s, [k]: v, ...(k === 'enabled' && !v ? { tabs: false, pause: false, lens: false } : {}) }))
 
   return (
     <Screen className="justify-end pt-[36vh]">
@@ -42,6 +43,9 @@ export default function Onboarding({ prefs, onDone }) {
           <Toggle label="Allow gentle check-ins" checked={signals.enabled} onChange={(v) => set('enabled', v)} />
           <Toggle label="Tab-hopping" hint="Counts tab switches per 5 minutes. Never which sites." checked={signals.tabs} disabled={!signals.enabled} onChange={(v) => set('tabs', v)} />
           <Toggle label="Long pauses" hint="Notices a long pause with no typing or mouse. Nothing is recorded." checked={signals.pause} disabled={!signals.enabled} onChange={(v) => set('pause', v)} />
+          {!inExtension && (
+            <Toggle label="Webcam focus lens (experimental)" hint="Notices a fixed stare, fewer blinks and tension, compared to your own normal. Analysed on this device; frames are never saved or sent." checked={!!signals.lens} disabled={!signals.enabled} onChange={(v) => set('lens', v)} />
+          )}
         </div>
       </TiltCard>
 
