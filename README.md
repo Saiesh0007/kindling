@@ -8,7 +8,46 @@ Kindling helps people experiencing task paralysis (common with ADHD and autism) 
 
 Track: **LLMs & RAG (The Task Sequencer)**. Also: an on-device **Computer Vision & Edge AI** lens, and opt-in desktop and browser signals.
 
-Live web demo: https://kindling-0gj7.onrender.com (free tier: the first visit after a quiet spell takes about a minute to wake up).
+| | |
+|---|---|
+| **Windows installer** | [Kindling.Setup.1.2.0.exe](https://github.com/Saiesh0007/kindling/releases/download/v1.2.0/Kindling.Setup.1.2.0.exe) ([release notes](https://github.com/Saiesh0007/kindling/releases/tag/v1.2.0)) |
+| **Live web demo** | https://kindling-0gj7.onrender.com (free tier: the first visit after a quiet spell takes about a minute to wake up) |
+
+---
+
+## The problem
+
+Task paralysis is an executive-function barrier, not laziness: people know exactly what to do and still cannot begin. Most productivity tools answer with more pressure (alarms, blockers, streaks, "overdue" badges). For someone already overloaded, each missed reminder adds shame, and shame makes the next start even harder.
+
+Kindling is built to break that loop. It notices gently, asks once, and then offers **one tiny step** or **genuine rest**. Nothing is ever overdue, and saying "not now" is always fine.
+
+## How it works
+
+Kindling follows the same four stages every time: **notice → ask → help → learn**.
+
+**1. Notice (optional, opt-in signals).** Every signal is off until the user turns it on, and each has its own switch.
+
+| Signal | Where | What is measured | What is never read |
+|---|---|---|---|
+| App-hopping | Desktop app | How often the foreground window changes in 5 minutes (12+ switches is a hint) | Window titles, app names, screen content |
+| Tab-hopping | Browser extension | Tab switches in 5 minutes | URLs, page content |
+| Long pause, then return | Desktop app and extension | No keyboard or mouse for 3 minutes, then a return within 20 minutes (a locked screen is ignored) | Keystrokes |
+| Focus lens | Desktop and web app (webcam) | Gaze stillness, blinks per minute and facial tension, each compared to the user's own 12-second calibration | Images or video: frames are analysed in memory and discarded |
+
+The focus lens is designed to tell a relaxed viewer from someone frozen at a blinking cursor. A still gaze alone is not enough: the stuck score combines stillness (40%), fewer blinks than the user's normal (30%) and tension above their normal (30%), and a smile or relaxed face lowers it. Only a sustained pattern over the chosen window (30 seconds to 5 minutes) counts.
+
+**2. Ask (one gentle check-in).** A signal never acts on its own; it only leads to a question: *"Looks like a tricky moment. Want a tiny nudge?"* with three equal-weight answers: **Yes**, **Not now** (a 30-minute quiet period) and **Pause for today**. The check-in shows why it asked. In the desktop app it arrives as a Windows notification when Kindling is in the tray.
+
+**3. Help (the Task Sequencer).** The user picks their energy in "spoons" (1 to 5) and types or says what they are stuck on. Then the local server:
+
+1. **Guardrails:** crisis wording goes to a calm support screen with the Tele-MANAS helpline (14416), never to task steps. Overwhelmed wording gets fewer, smaller steps.
+2. **Hybrid retrieval (RAG)** over 18 curated neurodivergent coping strategies (`backend/app/data/strategies.json`): BM25 keyword matching plus meaning matching with a local all-MiniLM-L6-v2 embedding model, re-ranked by energy fit and by what has helped this user before.
+3. **Step writer:** a local Llama 3.2 via Ollama writes microscopic steps from the chosen strategy, or the built-in writer does if no model is running. Low energy means fewer, smaller steps, and 1 spoon offers rest first.
+4. **Tone filter:** removes guilt words such as "should", "just" and "lazy".
+
+The user sees **one step at a time**, with *Did it*, *Smaller*, *Change* and *Skip*. Tapping *Strategy* explains the pick: meaning match %, matched words, task type, energy fit, and whether it helped before.
+
+**4. Learn (on the device).** *Did it* raises a strategy's personal score and *Skip* or *Change* lowers it. Scores (−1 to 1) are stored encrypted on the device and sent with the next request to re-rank retrieval; the server uses them and forgets them. *Kind wins* logs starts and rests (no streaks) and shows *What seems to help you*.
 
 ---
 
@@ -79,7 +118,7 @@ Kindling detects Ollama automatically. The chip at the top of the home screen tu
 
 1. **Onboarding:** consent first. Check-ins are off by default, and each signal is explained with its own toggle.
 2. **Focus lens (Computer Vision, on-device):** in Settings turn on *Webcam focus lens* and choose *30 s (demo)*. On Home, the lens card calibrates to your normal face for about 12 s, then shows gaze stillness, blinks per minute and tension. Look relaxed or smile: "Looks settled. No nudge needed." Then stare at one spot, blink less and frown or press your lips for about 30 s: a check-in appears that explains *why* it asked. The camera pill at the top-left turns it off in one tap.
-3. **Check-in:** or click *Simulate signal*. One question, three equal-weight answers ("Yes", "Not now", "Pause for today"). In the extension this goes through the real background worker and shows a system notification.
+3. **Check-in:** or click *Simulate signal*. One question, three equal-weight answers ("Yes", "Not now", "Pause for today"). In the extension this goes through the real background worker and shows a system notification. In the desktop app, close the window (Kindling stays in the tray), then choose *Demo: send a check-in in 5 seconds* from the tray menu: a Windows notification appears, and clicking it opens the check-in.
 4. **Energy:** tap the spoons. The 3D orb changes colour with energy. Pick 1 spoon and press *Help me start*: Kindling gently offers rest first.
 5. **Brain-dump:** pick the example *"I'm so overwhelmed, my DSA coding assignment is huge and I can't start"*. Kindling notices the overwhelm, lowers the step count, validates, and shows **one** step.
 6. **Smaller / Change / Skip:** every option is low-demand and penalty-free. *Strategy* shows which coping strategy was retrieved and **why**: meaning match %, matched words, task type, energy fit, and whether it helped this user before. Try a phrasing with no keywords, like *"I keep doomscrolling instead of revising"*: hybrid search still finds the transition ritual.
@@ -92,10 +131,17 @@ Kindling detects Ollama automatically. The chip at the top of the home screen tu
 
 ## Architecture
 
+Everything runs on the user's laptop. In the desktop app, Electron starts the bundled server on `127.0.0.1:8765` and shows the same React UI in its own window; in the browser the server runs on port 8000.
+
 ```
- USER'S DEVICE (browser)                         LOCAL SERVER (stateless, stores nothing)
+ USER'S DEVICE (desktop app or browser)          LOCAL SERVER (stateless, stores nothing)
  ┌───────────────────────────────┐               ┌──────────────────────────────────────┐
- │ Extension background worker   │               │ FastAPI  /api/sequence  /api/health  │
+ │ Signal watcher                │               │ FastAPI  /api/sequence  /api/health  │
+ │  desktop: Electron tray app   │               │          /api/desktop/activity       │
+ │   • app-switch counts         │               │   │                                  │
+ │   • idle → return, lock-aware │               │   │                                  │
+ │   • Windows notifications     │               │   │                                  │
+ │  browser: extension worker    │               │   │                                  │
  │  • tab-switch counts (no URLs)│               │   │                                  │
  │  • idle → return detection    │               │   ├─ Guardrails: crisis + overwhelm  │
  │  • rule engine + cooldown     │               │   ├─ Hybrid RAG over strategies.json │
@@ -116,6 +162,7 @@ Kindling detects Ollama automatically. The chip at the top of the home screen tu
 | UI | React 18, Vite, Tailwind, Framer Motion | Fast, accessible, smooth |
 | 3D | three.js, @react-three/fiber, drei | Energy orb, breathing guide, celebration sparks |
 | Local data | IndexedDB + WebCrypto AES-GCM (non-extractable key) | Personal data never leaves the device |
+| Desktop | Electron (tray, start at login, notifications), PyInstaller-bundled server, NSIS installer | One offline installer; signals keep working in the tray |
 | Extension | Chrome MV3: sidePanel, idle, notifications, storage | `tabs.onActivated` gives a tab id only, no URL or content |
 | Backend | Python FastAPI | Stateless and small |
 | Retrieval | Hybrid: BM25 + all-MiniLM-L6-v2 embeddings (fastembed, ONNX) + energy fit + personal feedback, over 18 curated strategies | Understands meaning, not only keywords; explainable; offline after one download; falls back to BM25 |
@@ -123,6 +170,12 @@ Kindling detects Ollama automatically. The chip at the top of the home screen tu
 | Personalisation | On-device done/skip counts per strategy, sent as scores with each request | Learns what helps this person; the server stores nothing |
 | LLM | Ollama (Llama 3.2 3B by default), optional | Free and private; built-in engine as fallback |
 | Safety | Regex guardrails, tone softener, crisis handoff | Never guilt-trips; routes distress to real help |
+
+## Deployment
+
+- **Windows installer:** `cd desktop && npm run dist`. `scripts/build-server.mjs` builds the web app, bundles the Python server, strategy library and embedding model with PyInstaller, and electron-builder wraps it all in an NSIS installer in `desktop/release/`.
+- **Web (Render):** `render.yaml` deploys the `Dockerfile` as a free web service with a health check on `/api/health`, redeploying on every push to `main`. The Docker image builds the web app, installs the backend and bakes in the embedding model, so it needs no downloads at runtime.
+- **Any Docker host:** `docker build -t kindling . && docker run -p 7860:7860 kindling`, then open http://localhost:7860.
 
 ## Privacy
 
