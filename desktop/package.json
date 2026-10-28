@@ -1,0 +1,48 @@
+{
+  "name": "kindling-desktop",
+  "productName": "Kindling",
+  "version": "1.2.0",
+  "description": "A gentle, private task starter for when you feel stuck",
+  "author": "Saiesh0007",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:server": "node scripts/build-server.mjs",
+    "dist": "npm run build:server && electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.kindling.desktop",
+    "productName": "Kindling",
+    "files": [
+      "main.js",
+      "preload.js",
+      "loading.html",
+      "assets/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist/kindling-server",
+        "to": "server"
+      }
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Kindling"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  }
+}

@@ -1,8 +1,22 @@
-// Bridge to the browser extension's background worker. Does nothing on the plain web app.
+// Bridges to the browser extension's background worker and to the desktop app.
+// Both do nothing on the plain web app.
 /* global chrome */
 export const inExtension = typeof chrome !== 'undefined' && !!chrome.runtime?.id
+export const desktop = typeof window !== 'undefined' ? window.kindlingDesktop : undefined
+export const inDesktop = !!desktop
 
 export function syncSignals(prefs) {
+  if (inDesktop) {
+    desktop.syncSignals({
+      enabled: prefs.signals.enabled,
+      tabs: prefs.signals.tabs,
+      pause: prefs.signals.pause,
+      lens: prefs.signals.lens,
+      pausedUntil: prefs.pausedUntil,
+      snoozedUntil: prefs.snoozedUntil,
+      startAtLogin: prefs.startAtLogin,
+    })
+  }
   if (!inExtension) return
   chrome.storage.local.set({
     kindlingSignals: {
@@ -16,6 +30,7 @@ export function syncSignals(prefs) {
 }
 
 export function simulateSignal() {
+  if (inDesktop) desktop.simulate()
   if (inExtension) chrome.runtime.sendMessage({ type: 'simulate' })
 }
 

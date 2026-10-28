@@ -8,3 +8,8 @@ extension/panel/
 .DS_Store
 backend/.models/
 web/public/mediapipe/wasm/
+desktop/node_modules/
+desktop/release/
+backend/build/
+backend/dist/
+backend/*.spec

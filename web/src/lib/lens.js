@@ -67,10 +67,11 @@ function readFrame(result) {
 }
 
 /**
- * useLens(enabled, { windowSec, onStuck }) -> { status, metrics, error, videoRef }
+ * useLens(enabled, { windowSec, onStuck, background }) -> { status, metrics, error, videoRef }
+ * background: keep watching while the page is hidden (the desktop app, sitting in the tray)
  * status: off | loading | calibrating | on | hidden | error
  */
-export function useLens(enabled, { windowSec = 60, onStuck } = {}) {
+export function useLens(enabled, { windowSec = 60, onStuck, background = false } = {}) {
   const [status, setStatus] = useState('off')
   const [metrics, setMetrics] = useState(null)
   const [error, setError] = useState(null)
@@ -128,7 +129,7 @@ export function useLens(enabled, { windowSec = 60, onStuck } = {}) {
 
     function loop(landmarker) {
       timer = setTimeout(() => loop(landmarker), 1000 / FPS)
-      if (document.visibilityState !== 'visible') {
+      if (!background && document.visibilityState !== 'visible') {
         setStatus('hidden')
         return
       }
@@ -206,7 +207,7 @@ export function useLens(enabled, { windowSec = 60, onStuck } = {}) {
       video.srcObject = null
       videoRef.current = null
     }
-  }, [enabled, windowSec])
+  }, [enabled, windowSec, background])
 
   return { status, metrics, error, videoRef }
 }

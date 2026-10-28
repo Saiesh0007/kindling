@@ -4,12 +4,13 @@ Uses all-MiniLM-L6-v2 via fastembed (ONNX, CPU, no PyTorch). The model is downlo
 into backend/.models and then works offline. If fastembed or the model is missing, Kindling
 silently falls back to keyword (BM25) retrieval only.
 """
+import logging
 import os
 import threading
 from pathlib import Path
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-CACHE = Path(__file__).resolve().parents[1] / ".models"
+CACHE = Path(os.environ.get("KINDLING_MODELS") or Path(__file__).resolve().parents[1] / ".models")
 ENABLED = os.environ.get("KINDLING_SEMANTIC", "1") != "0"
 
 
@@ -45,6 +46,7 @@ class SemanticIndex:
                 self.ready = True
             except Exception as e:  # missing package, no network on first run, etc.
                 self.error = type(e).__name__
+                logging.getLogger("kindling").warning("Semantic retrieval unavailable, using keywords: %r", e)
 
     @staticmethod
     def _normalise(m):

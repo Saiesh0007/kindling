@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Lock, Trash2 } from 'lucide-react'
 import { Screen, Toggle } from '../components/ui.jsx'
-import { inExtension } from '../lib/ext.js'
+import { inDesktop, inExtension } from '../lib/ext.js'
 
 export default function Settings({ prefs, update, engine, onWipe }) {
   const [confirm, setConfirm] = useState(false)
@@ -18,11 +18,13 @@ export default function Settings({ prefs, update, engine, onWipe }) {
       <section className="glass mt-5 p-5">
         <h2 className="font-display text-lg font-bold">Gentle check-ins</h2>
         <p className="text-sm text-slate-400">
-          {inExtension ? 'Signals are counted on this device only.' : 'Tab and pause signals come from the Kindling extension. The camera lens runs right here, on this device.'}
+          {inDesktop
+            ? 'Signals are counted on this laptop only, and keep working while Kindling sits in the tray.'
+            : inExtension ? 'Signals are counted on this device only.' : 'Tab and pause signals come from the Kindling extension. The camera lens runs right here, on this device.'}
         </p>
         <div className="mt-1 divide-y divide-white/10">
           <Toggle label="Allow gentle check-ins" checked={prefs.signals.enabled} onChange={(v) => sig('enabled', v)} />
-          <Toggle label="Tab-hopping" hint="Number of tab switches per 5 min. Never URLs." checked={prefs.signals.tabs} disabled={!prefs.signals.enabled} onChange={(v) => sig('tabs', v)} />
+          <Toggle label={inDesktop ? 'App-hopping' : 'Tab-hopping'} hint={inDesktop ? 'Number of app switches per 5 min. Never which apps.' : 'Number of tab switches per 5 min. Never URLs.'} checked={prefs.signals.tabs} disabled={!prefs.signals.enabled} onChange={(v) => sig('tabs', v)} />
           <Toggle label="Long pauses" hint="No mouse or keyboard for a while, then you return." checked={prefs.signals.pause} disabled={!prefs.signals.enabled} onChange={(v) => sig('pause', v)} />
           <Toggle label="Webcam focus lens (experimental)"
             hint={inExtension ? 'Open Kindling in a browser tab to use the camera lens.' : 'Blinks, gaze and tension, analysed on this device. Frames are never saved or sent.'}
@@ -37,6 +39,9 @@ export default function Settings({ prefs, update, engine, onWipe }) {
             </div>
           )}
           <Toggle label="Pause everything for today" checked={paused} onChange={(v) => update({ pausedUntil: v ? endOfDay() : 0 })} />
+          {inDesktop && (
+            <Toggle label="Start Kindling when I sign in" hint="Waits quietly in the tray. Closing the window keeps it there; quit from the tray icon." checked={prefs.startAtLogin} onChange={(v) => update({ startAtLogin: v })} />
+          )}
         </div>
       </section>
 

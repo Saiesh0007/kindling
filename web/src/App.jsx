@@ -15,7 +15,7 @@ import Support from './screens/Support.jsx'
 import { health, sequence } from './lib/api.js'
 import { load, save, wipeAll } from './lib/store.js'
 import { useLens } from './lib/lens.js'
-import { clearExtensionData, inExtension, simulateSignal, syncSignals } from './lib/ext.js'
+import { clearExtensionData, desktop, inDesktop, inExtension, simulateSignal, syncSignals } from './lib/ext.js'
 
 const DEFAULT_PREFS = {
   onboarded: false,
@@ -27,6 +27,7 @@ const DEFAULT_PREFS = {
   contrast: false,
   reducedMotion: typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches,
   useLLM: true,
+  startAtLogin: false,
 }
 const COOLDOWN_MS = 30 * 60_000
 const LENS_SCREENS = ['home', 'wins', 'settings', 'dump']
@@ -67,6 +68,18 @@ export default function App() {
     health().then(setEngine)
     const id = setInterval(() => health().then(setEngine), 15_000)
     return () => clearInterval(id)
+  }, [])
+
+  // Desktop app: check-ins from system-wide signals, and "Pause for today" from the tray.
+  useEffect(() => {
+    if (!inDesktop) return
+    const offCheckIn = desktop.onCheckIn(({ reason }) => setCheckIn((c) => c || { reason }))
+    const offPause = desktop.onPause(() => {
+      const d = new Date(); d.setHours(23, 59, 59, 999)
+      setCheckIn(null)
+      setPrefs((p) => ({ ...p, pausedUntil: d.getTime() }))
+    })
+    return () => { offCheckIn(); offPause() }
   }, [])
 
   useEffect(() => {
@@ -153,14 +166,16 @@ export default function App() {
   const onMore = onChange
 
   // ---- check-ins ----
-  const simulate = () => (inExtension && prefs.signals.enabled ? simulateSignal() : setCheckIn({ reason: 'demo' }))
+  const simulate = () => ((inExtension || inDesktop) && prefs.signals.enabled ? simulateSignal() : setCheckIn({ reason: 'demo' }))
   const quiet = () => prefs.pausedUntil > Date.now() || prefs.snoozedUntil > Date.now()
   const lensOn = !inExtension && prefs.onboarded && prefs.signals.enabled && prefs.signals.lens && prefs.pausedUntil <= Date.now()
   const lens = useLens(lensOn, {
     windowSec: prefs.lensWindow,
+    background: inDesktop,
     onStuck: ({ reasons }) => {
       if (quiet() || checkIn || !LENS_SCREENS.includes(screen) || restDone) return
       setCheckIn({ reason: 'lens', reasons })
+      desktop?.notify('lens') // a Windows notification when Kindling is in the tray
     },
   })
   const stopLens = () => update({ signals: { ...prefs.signals, lens: false } })
@@ -186,7 +201,7 @@ export default function App() {
 
   let view
   if (!prefs.onboarded) {
-    view = <Onboarding key="onb" prefs={prefs} onDone={(signals) => update({ onboarded: true, signals })} />
+    view = <Onboarding key="onb" prefs={prefs} onDone={(signals, extra) => update({ onboarded: true, signals, ...extra })} />
   } else if (restDone) {
     view = (
       <Screen key="restdone" className="pt-[40vh]">

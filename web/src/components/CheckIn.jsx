@@ -3,6 +3,7 @@ import { HandHeart, X } from 'lucide-react'
 
 const REASONS = {
   tabs: 'You have been hopping between a lot of tabs.',
+  apps: 'You have been switching between a lot of apps.',
   pause: 'There was a long pause on the same screen.',
   demo: 'A possible stuck moment was noticed.',
   lens: 'The focus lens noticed a possible stuck moment.',

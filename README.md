@@ -2,15 +2,38 @@
 
 **A gentle, shame-free task starter for brains that work differently.**
 
-Kindling helps people experiencing task paralysis (common with ADHD and autism) take one tiny first step, or choose genuine rest, without alarms, streaks or guilt. It is a web app plus a Chrome/Edge extension, backed by a small local server that breaks tasks into micro-steps using hybrid retrieval (meaning + keywords) over a library of coping strategies and an optional local LLM. An opt-in, on-device webcam lens can notice a possible stuck moment, and Kindling learns on the device which strategies help each person.
+Kindling helps people experiencing task paralysis (common with ADHD and autism) take one tiny first step, or choose genuine rest, without alarms, streaks or guilt. It runs as a Windows desktop app, a web app or a Chrome/Edge extension, backed by a small local server that breaks tasks into micro-steps using hybrid retrieval (meaning + keywords) over a library of coping strategies and an optional local LLM. An opt-in, on-device webcam lens can notice a possible stuck moment, and Kindling learns on the device which strategies help each person.
 
 > Kindling does not diagnose ADHD, autism or any condition. Signals are treated as possible hints, a reason to gently ask, never proof of how someone feels.
 
-Track: **LLMs & RAG (The Task Sequencer)**. Also: an on-device **Computer Vision & Edge AI** lens, and opt-in browser signals.
+Track: **LLMs & RAG (The Task Sequencer)**. Also: an on-device **Computer Vision & Edge AI** lens, and opt-in desktop and browser signals.
+
+Live web demo: https://kindling-0gj7.onrender.com (free tier: the first visit after a quiet spell takes about a minute to wake up).
 
 ---
 
-## Run it (Windows)
+## Desktop app (Windows)
+
+Install with **`Kindling Setup 1.2.0.exe`**. It bundles everything (server, strategy library, embedding model, web app), so it needs no Python, Node or internet. Windows SmartScreen may warn because the installer is not code-signed: choose *More info → Run anyway*.
+
+What the desktop app adds:
+
+- **Lives in the tray.** Closing the window keeps Kindling running; quit from the tray icon. The tray menu also has *Pause check-ins for today* and *Demo: send a check-in in 5 seconds*.
+- **Start when I sign in** (opt-in, in onboarding and Settings): Kindling starts quietly in the tray each time you log in.
+- **System-wide signals**, all opt-in: *app-hopping* (how often the foreground window changes in 5 minutes; window handles only, never titles or app names), *long pauses* (no keyboard or mouse for 3 to 20 minutes, then you return), and the *webcam lens*, which keeps working while Kindling is in the tray.
+- **Windows notifications** for check-ins when the window is hidden. Clicking one opens Kindling with the check-in.
+- **Permissions:** the camera (video only) and notifications are granted to Kindling's own page only. If the lens says the camera can't start, allow desktop apps in *Windows Settings → Privacy & security → Camera*.
+
+Run from source, or build the installer:
+
+```bat
+cd desktop
+npm install
+npm start            :: uses backend\.venv, so run start.bat once first
+npm run dist         :: builds desktop\release\Kindling Setup 1.2.0.exe
+```
+
+## Run it in the browser (Windows)
 
 Double-click **`start.bat`**, or:
 
@@ -103,9 +126,9 @@ Kindling detects Ollama automatically. The chip at the top of the home screen tu
 
 ## Privacy
 
-- **Signals used:** tab-switch count per 5 minutes, idle-then-return, self-reported energy, text the user chooses to type and, only if turned on, the webcam focus lens.
-- **Webcam lens:** off by default, experimental, web app only. Frames are analysed in memory by MediaPipe in the browser and discarded; only a few numbers per second are kept, in memory. No images, video or face data are stored or sent. It compares you to your own calibration, not a population norm, always shows a "camera on" pill, and only ever asks a question with its reasons.
-- **Never used:** microphone (except when the user presses *Say it instead*), keystrokes, URLs, page content, location.
+- **Signals used:** tab-switch count (extension) or app-switch count (desktop) per 5 minutes, idle-then-return, self-reported energy, text the user chooses to type and, only if turned on, the webcam focus lens.
+- **Webcam lens:** off by default, experimental, web and desktop app. Frames are analysed in memory by MediaPipe in the browser and discarded; only a few numbers per second are kept, in memory. No images, video or face data are stored or sent. It compares you to your own calibration, not a population norm, always shows a "camera on" pill, and only ever asks a question with its reasons.
+- **Never used:** microphone (except when the user presses *Say it instead*), keystrokes, URLs, page content, window titles, app names, location.
 - All signals are opt-in and off by default. Pause for today, or "Not now" (30-minute cooldown), at any time.
 - Wins and settings are encrypted in IndexedDB. *Delete all my data* wipes everything in one tap.
 - The server keeps no accounts and no chat logs, and nothing is used for training.
@@ -127,9 +150,13 @@ backend/app/main.py           API, static hosting of the web build
 backend/app/rag.py            hybrid strategy retrieval (BM25 + embeddings + feedback)
 backend/app/semantic.py       local MiniLM embeddings via fastembed
 backend/app/sequencer.py      Ollama + built-in micro-step writer
+backend/app/desktop.py        app-switch counter (desktop app only)
+backend/server.py             entry point for the bundled desktop server
 backend/app/guardrails.py     tone softening, overwhelm + crisis detection
 backend/app/data/strategies.json   the coping-strategy knowledge base
 web/src/                      React app (screens, 3D scene, encrypted store)
 web/src/lib/lens.js           on-device webcam focus lens (MediaPipe)
 extension/                    MV3 manifest + background signal watcher
+desktop/main.js               Electron app: tray, start at login, signals, notifications
+desktop/scripts/build-server.mjs   bundles the server with PyInstaller for the installer
 ```

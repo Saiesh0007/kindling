@@ -1,4 +1,5 @@
 """Kindling API. Stateless: requests are processed in memory and never stored or logged."""
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -9,7 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import sequencer
+from . import desktop, sequencer
 from .guardrails import SUPPORT_MESSAGE, is_crisis, is_overwhelmed
 from .rag import StrategyIndex
 
@@ -132,8 +133,14 @@ async def sequence(req: SequenceRequest):
                             engine=engine, retrieval=index.mode, overwhelmed=overwhelmed)
 
 
+@app.get("/api/desktop/activity")
+def desktop_activity():
+    """App-switch count for the desktop app's signal rules. Disabled outside the desktop app."""
+    return desktop.activity()
+
+
 # Serve the built web app (web/dist) from the same server for a one-command demo.
-DIST = Path(__file__).resolve().parents[2] / "web" / "dist"
+DIST = Path(os.environ.get("KINDLING_DIST") or Path(__file__).resolve().parents[2] / "web" / "dist")
 if DIST.exists():
     app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
 

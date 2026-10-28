@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 
 // Voice brain-dump via the browser's Web Speech API. Optional: hidden when unsupported.
 export function useSpeech(onText) {
-  const Rec = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
+  // Hidden in the desktop app: Electron's speech recognition needs a cloud service it lacks.
+  const Rec = typeof window !== 'undefined' && !window.kindlingDesktop && (window.SpeechRecognition || window.webkitSpeechRecognition)
   const [listening, setListening] = useState(false)
   const rec = useRef(null)
 
