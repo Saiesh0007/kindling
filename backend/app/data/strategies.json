@@ -43,7 +43,7 @@
       "Write one messy sentence about {topic}, typos allowed",
       "Type three bullet points about {topic}, even bad ones"
     ],
-    "when": "I'm scared it won't be good enough. I keep rewriting the first sentence. It has to be perfect."
+    "when": "I'm scared it won't be good enough. I keep rewriting the first sentence. It has to be perfect. What if my teacher or supervisor hates it? I'm afraid of criticism and judgement."
   },
   {
     "id": "body-doubling",
@@ -83,7 +83,7 @@
       "Just {open}. Nothing else yet",
       "Put your hand on the mouse and look at the {thing} for ten seconds"
     ],
-    "when": "Even the small step feels too big. Everything feels heavy and too much effort."
+    "when": "Even the small step feels too big. Everything feels heavy and too much effort. I'm frozen and can't move at all."
   },
   {
     "id": "task-landing-pad",
@@ -189,7 +189,7 @@
       "Write every task in your head on one page, no order needed",
       "Circle the one item that feels smallest"
     ],
-    "when": "There's too much in my head. So many things at once, I don't know what to do first. My thoughts are racing."
+    "when": "There's too much in my head. So many things at once, I don't know what to do first. My thoughts are racing. My brain feels foggy, scattered, like static."
   },
   {
     "id": "transition-ritual",
@@ -208,7 +208,7 @@
       "Stand up, take one sip of water, sit back down",
       "Close one tab you don't need right now"
     ],
-    "when": "I can't stop scrolling my phone or social media and switch to work. I'm doomscrolling, stuck between tasks and keep hopping around."
+    "when": "I can't stop scrolling my phone or social media and switch to work. I'm doomscrolling, stuck between tasks and keep hopping around. Instagram, YouTube, TikTok or other apps keep pulling me in with endless videos."
   },
   {
     "id": "reading-chunk",
@@ -263,7 +263,7 @@
       "Pick up five things and put them where they live",
       "Clear just one corner of the desk"
     ],
-    "when": "My room is a disaster and the mess is overwhelming. Too many dishes and clothes everywhere."
+    "when": "My room is a disaster and the mess is overwhelming. Too many dishes and clothes everywhere. Everything is chaos, piles of stuff and clutter."
   },
   {
     "id": "admin-gather",
@@ -282,7 +282,7 @@
       "Open the {thing} and read only the first heading",
       "Put every document you need for the {thing} in one folder"
     ],
-    "when": "I have paperwork, forms and bills I keep avoiding. Bureaucracy and documents feel scary."
+    "when": "I have paperwork, forms and bills I keep avoiding. Bureaucracy and documents feel scary. Phone calls to the bank, loans, appointments and government offices."
   },
   {
     "id": "low-spoon-mode",
@@ -302,7 +302,7 @@
       "Just write the task's name on a sticky note for later",
       "Rest for 5 minutes first, then decide"
     ],
-    "when": "I'm exhausted, burnt out and have no energy left. I'm so tired I can barely function."
+    "when": "I'm exhausted, burnt out and have no energy left. I'm so tired I can barely function. Running on empty, zero spoons, wiped out with nothing left in the tank."
   },
   {
     "id": "future-self-note",
@@ -361,6 +361,6 @@
       "Write down one thing you remember about {topic}",
       "Answer one practice question about {topic}, even roughly"
     ],
-    "when": "My exam is coming up and I don't know how to revise. I'm panicking about the test."
+    "when": "My exam is coming up and I don't know how to revise. I'm panicking about the test. An oral exam or presentation is coming and I'm nervous about being tested."
   }
 ]

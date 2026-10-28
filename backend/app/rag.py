@@ -77,22 +77,23 @@ class StrategyIndex:
         qset = set(query)
         types = detect_task_types(text)
         bm25 = [self._bm25(query, i) for i in range(len(self.docs))]
-        top = max(bm25) or 1.0
         sims = self.semantic.similarities(text)
+        mean_sim = sum(sims) / len(sims) if sims else 0.0
         scored = []
         for i, d in enumerate(self.docs):
             if d["id"] in exclude:
                 continue
-            kw = bm25[i] / top
-            s = 2.0 * kw
+            # Saturating keyword score: one weak, common word can't count as a full match.
+            kw = bm25[i] / (bm25[i] + 4.0)
+            s = 3.0 * kw
             sim = sims[i] if sims else None
             if sim is not None:
-                s += 5.0 * sim
+                s += 10.0 * (sim - mean_sim)  # meaning, relative to how similar everything is
             matched_types = sorted(set(types) & set(d["tags"]))
-            s += 1.5 * len(matched_types)
+            s += 1.0 * len(matched_types)
             lo, hi = d["energy"]
             fits = lo <= energy <= hi
-            s += 1.0 if fits else -2.0
+            s += 1.0 if fits else -1.0
             if "any" in d["tags"]:
                 s += 0.2
             personal = max(-1.0, min(1.0, float(feedback.get(d["id"], 0))))
