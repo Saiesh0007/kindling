@@ -4,6 +4,7 @@ import Scene from './three/Scene.jsx'
 import { Dock, Screen, TiltCard } from './components/ui.jsx'
 import CheckIn from './components/CheckIn.jsx'
 import { CameraPill, LensCard } from './components/Lens.jsx'
+import { SignalsCard } from './components/Signals.jsx'
 import Onboarding from './screens/Onboarding.jsx'
 import Home from './screens/Home.jsx'
 import Dump from './screens/Dump.jsx'
@@ -12,9 +13,11 @@ import Rest from './screens/Rest.jsx'
 import Wins from './screens/Wins.jsx'
 import Settings from './screens/Settings.jsx'
 import Support from './screens/Support.jsx'
+import Report from './screens/Report.jsx'
 import { health, sequence } from './lib/api.js'
 import { load, save, wipeAll } from './lib/store.js'
 import { useLens } from './lib/lens.js'
+import { chime } from './lib/sound.js'
 import { clearExtensionData, desktop, inDesktop, inExtension, simulateSignal, syncSignals } from './lib/ext.js'
 
 const DEFAULT_PREFS = {
@@ -27,6 +30,8 @@ const DEFAULT_PREFS = {
   contrast: false,
   reducedMotion: typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches,
   useLLM: true,
+  chime: true,
+  restSound: { kind: 'off', volume: 0.5 },
 }
 const COOLDOWN_MS = 30 * 60_000
 const LENS_SCREENS = ['home', 'wins', 'settings', 'dump']
@@ -39,6 +44,7 @@ export default function App() {
   const [prefs, setPrefs] = useState(DEFAULT_PREFS)
   const [wins, setWins] = useState([])
   const [feedback, setFeedback] = useState({})
+  const [checkins, setCheckins] = useState([])
   const [screen, setScreen] = useState('home')
   const [energy, setEnergy] = useState(3)
   const [task, setTask] = useState('')
@@ -60,6 +66,7 @@ export default function App() {
       setPrefs(p)
       setWins(await load('wins', []))
       setFeedback(await load('feedback', {}))
+      setCheckins(await load('checkins', []))
       setReady(true)
       if (location.hash === '#checkin') setCheckIn({ reason: 'demo' })
       if (location.hash === '#nudge') setScreen('home')
@@ -69,16 +76,20 @@ export default function App() {
     return () => clearInterval(id)
   }, [])
 
-  // Desktop app: check-ins from system-wide signals, and "Pause for today" from the tray.
+  // Desktop app: check-ins from system-wide signals, a soft chime with each notification,
+  // and "Pause for today" from the tray.
+  const chimeOn = useRef(true)
+  chimeOn.current = prefs.chime
   useEffect(() => {
     if (!inDesktop) return
+    const offChime = desktop.onChime(() => chimeOn.current && chime())
     const offCheckIn = desktop.onCheckIn(({ reason }) => setCheckIn((c) => c || { reason }))
     const offPause = desktop.onPause(() => {
       const d = new Date(); d.setHours(23, 59, 59, 999)
       setCheckIn(null)
       setPrefs((p) => ({ ...p, pausedUntil: d.getTime() }))
     })
-    return () => { offCheckIn(); offPause() }
+    return () => { offChime(); offCheckIn(); offPause() }
   }, [])
 
   useEffect(() => {
@@ -178,10 +189,17 @@ export default function App() {
     },
   })
   const stopLens = () => update({ signals: { ...prefs.signals, lens: false } })
-  const checkInYes = () => { setCheckIn(null); go('home') }
-  const checkInLater = () => { setCheckIn(null); update({ snoozedUntil: Date.now() + COOLDOWN_MS }) }
+  // Each check-in and its answer is kept (encrypted, on this device) for "My report".
+  const logCheckIn = (answer) => setCheckins((list) => {
+    const next = [...list, { at: Date.now(), reason: checkIn?.reason || 'demo', answer }].slice(-500)
+    save('checkins', next)
+    return next
+  })
+  const checkInYes = () => { logCheckIn('yes'); setCheckIn(null); go('home') }
+  const checkInLater = () => { logCheckIn('later'); setCheckIn(null); update({ snoozedUntil: Date.now() + COOLDOWN_MS }) }
   const checkInPause = () => {
     const d = new Date(); d.setHours(23, 59, 59, 999)
+    logCheckIn('pause')
     setCheckIn(null)
     update({ pausedUntil: d.getTime() })
   }
@@ -191,6 +209,7 @@ export default function App() {
     clearExtensionData()
     setWins([])
     setFeedback({})
+    setCheckins([])
     setPrefs({ ...DEFAULT_PREFS })
     go('home')
   }
@@ -225,25 +244,31 @@ export default function App() {
     )
   } else if (screen === 'rest') {
     view = <Rest key="rest" setBreath={setBreath} onBack={() => go('home')}
+      sound={prefs.restSound} setSound={(restSound) => update({ restSound })}
       onFinish={(o) => { addWin(`Rested: ${o.title.toLowerCase()}`, 'rest'); setRestDone(o) }} />
   } else if (screen === 'support' && result) {
     view = <Support key="support" message={result.message} onBack={() => go('rest')} />
   } else if (screen === 'wins') {
-    view = <Wins key="wins" wins={wins} feedback={feedback} />
+    view = <Wins key="wins" wins={wins} feedback={feedback} onReport={() => go('report')} />
+  } else if (screen === 'report') {
+    view = <Report key="report" wins={wins} feedback={feedback} checkins={checkins} onBack={() => go('wins')} />
   } else if (screen === 'settings') {
     view = <Settings key="settings" prefs={prefs} update={update} engine={engine} onWipe={wipe} />
   } else {
     view = <Home key="home" energy={energy} setEnergy={setEnergy} engine={engine} onSimulate={simulate}
       onStart={() => go('dump')} onRest={() => go('rest')}
-      lens={<LensCard lens={lens} windowSec={prefs.lensWindow} onStop={stopLens} />} />
+      lens={<>
+        {inDesktop && prefs.signals.enabled && (prefs.signals.tabs || prefs.signals.pause) && <SignalsCard signals={prefs.signals} />}
+        <LensCard lens={lens} windowSec={prefs.lensWindow} onStop={stopLens} />
+      </>} />
   }
 
   return (
     <>
       <Scene mood={mood} breath={breath} burst={burst} reducedMotion={prefs.reducedMotion} />
-      <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 z-[1] h-2/3 bg-gradient-to-t from-night-950 via-night-950/70 to-transparent" />
+      <div aria-hidden className="no-print pointer-events-none fixed inset-x-0 bottom-0 z-[1] h-2/3 bg-gradient-to-t from-night-950 via-night-950/70 to-transparent" />
       <AnimatePresence mode="wait">{view}</AnimatePresence>
-      {prefs.onboarded && !restDone && <Dock screen={['home', 'wins', 'settings'].includes(screen) ? screen : 'home'} go={go} />}
+      {prefs.onboarded && !restDone && <Dock screen={screen === 'report' ? 'wins' : ['home', 'wins', 'settings'].includes(screen) ? screen : 'home'} go={go} />}
       {prefs.onboarded && <CameraPill status={lens.status} onStop={stopLens} />}
       <CheckIn open={!!checkIn} reason={checkIn?.reason} reasons={checkIn?.reasons} onYes={checkInYes} onLater={checkInLater} onPause={checkInPause} />
     </>

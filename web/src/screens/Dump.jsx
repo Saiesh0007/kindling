@@ -50,6 +50,14 @@ export default function Dump({ initial = '', loading, onSubmit, onBack }) {
           ) : <span />}
           <span className="text-xs text-slate-500">Ctrl + Enter</span>
         </div>
+        {speech.offline && (speech.listening || speech.error) && (
+          <p className={`mt-2 text-xs ${speech.error ? 'text-rose-300' : 'text-slate-400'}`} role="status">
+            {speech.error === 'mic' ? "I couldn't hear a microphone. Check Windows Settings → Privacy → Microphone, then try again."
+              : speech.error === 'none' ? "Windows has no speech recognizer installed. Typing works just as well."
+                : speech.error ? "Voice input didn't start this time. Typing works just as well."
+                  : 'Listening with Windows’ offline recognizer. Your voice never leaves this laptop. Stops after a quiet pause.'}
+          </p>
+        )}
       </TiltCard>
 
       <div className="mt-3 flex flex-wrap gap-2">

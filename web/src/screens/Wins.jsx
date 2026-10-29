@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Moon, Sprout, Footprints } from 'lucide-react'
+import { FileText, Moon, Sprout, Footprints } from 'lucide-react'
 import { Screen } from '../components/ui.jsx'
 
 const ICON = { start: Sprout, step: Footprints, rest: Moon }
@@ -13,7 +13,7 @@ function ago(ts) {
   return h < 24 ? `${h} h ago` : new Date(ts).toLocaleDateString()
 }
 
-export default function Wins({ wins, feedback = {} }) {
+export default function Wins({ wins, feedback = {}, onReport }) {
   const helps = Object.entries(feedback).filter(([, v]) => v.done > 0).sort((a, b) => b[1].done - a[1].done).slice(0, 4)
   return (
     <Screen className="pt-[34vh]">
@@ -21,6 +21,7 @@ export default function Wins({ wins, feedback = {} }) {
         Your <span className="text-gradient">kind wins</span>
       </h1>
       <p className="mt-2 text-slate-300">No streaks. Nothing to break. Starts and rests both count.</p>
+      <button onClick={onReport} className="btn-ghost mt-4 self-start"><FileText className="h-4 w-4" /> My report</button>
       {helps.length > 0 && (
         <div className="glass mt-5 p-4">
           <p className="font-display font-bold">What seems to <span className="text-gradient-cool">help you</span></p>

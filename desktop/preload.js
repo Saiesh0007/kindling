@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('kindlingDesktop', {
   notify: (reason) => ipcRenderer.send('kindling:notify', reason),
   getStartAtLogin: () => ipcRenderer.invoke('kindling:get-login'),
   setStartAtLogin: (on) => ipcRenderer.invoke('kindling:set-login', on),
+  getStatus: () => ipcRenderer.invoke('kindling:status'),
+  saveReport: () => ipcRenderer.invoke('kindling:save-report'),
+  startDictation: () => ipcRenderer.invoke('kindling:dictate-start'),
+  stopDictation: () => ipcRenderer.invoke('kindling:dictate-stop'),
+  onDictation: listen('kindling:dictation'),
+  onChime: listen('kindling:chime'),
   onCheckIn: listen('kindling:checkin'),
   onPause: listen('kindling:pause'),
 })

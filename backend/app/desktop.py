@@ -19,6 +19,7 @@ import time
 
 ENABLED = os.environ.get("KINDLING_DESKTOP") == "1" and sys.platform == "win32"
 WINDOW_S = 300
+THRESHOLD = 12  # app + tab switches in WINDOW_S that count as a possible stuck moment
 TAB_GAP_S = 1.5  # one tab switch at most per 1.5 s, so a page loading in steps counts once
 
 EVENT_SYSTEM_FOREGROUND = 0x0003
@@ -92,9 +93,10 @@ def _count(times: list[float], now: float) -> int:
 def activity() -> dict:
     global _thread
     if not ENABLED:
-        return {"enabled": False, "switches": 0, "tabs": 0, "window_seconds": WINDOW_S}
+        return {"enabled": False, "switches": 0, "tabs": 0, "threshold": THRESHOLD, "window_seconds": WINDOW_S}
     if _thread is None:
         _thread = threading.Thread(target=_watch, daemon=True)
         _thread.start()
     now = time.monotonic()
-    return {"enabled": True, "switches": _count(_apps, now), "tabs": _count(_tabs, now), "window_seconds": WINDOW_S}
+    return {"enabled": True, "switches": _count(_apps, now), "tabs": _count(_tabs, now),
+            "threshold": THRESHOLD, "window_seconds": WINDOW_S}

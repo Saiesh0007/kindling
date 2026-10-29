@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Footprints, GlassWater, Wind, BedDouble } from 'lucide-react'
+import { ArrowLeft, Footprints, GlassWater, Wind, BedDouble, Music } from 'lucide-react'
 import { Screen, TiltCard } from '../components/ui.jsx'
+import { SOUNDSCAPES, soundscape } from '../lib/sound.js'
 
 const OPTIONS = [
   { id: 'breathe', icon: Wind, title: 'Breathe with the orb', text: 'Box breathing, about a minute', minutes: 1.1, color: 'from-sky-400 to-indigo-500' },
@@ -11,10 +12,40 @@ const OPTIONS = [
 ]
 const BOX = [['Breathe in', 1], ['Hold', 1], ['Breathe out', 0], ['Hold', 0]] // 4s each
 
-export default function Rest({ setBreath, onFinish, onBack }) {
+function SoundPicker({ sound, setSound }) {
+  return (
+    <div className="glass mt-5 p-4">
+      <p className="flex items-center gap-2 text-sm font-semibold"><Music className="h-4 w-4 text-sky-300" /> Soothing sound while you rest</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {SOUNDSCAPES.map(([id, label]) => (
+          <button key={id} onClick={() => setSound({ ...sound, kind: id })} aria-pressed={sound.kind === id}
+            className={`chip ${sound.kind === id ? 'border-sky-300/60 bg-sky-300/15 text-sky-100' : 'hover:bg-white/10'}`}>{label}</button>
+        ))}
+      </div>
+      {sound.kind !== 'off' && (
+        <label className="mt-3 flex items-center gap-3 text-xs text-slate-400">
+          Volume
+          <input type="range" min="0.05" max="1" step="0.05" value={sound.volume} aria-label="Sound volume"
+            onChange={(e) => setSound({ ...sound, volume: Number(e.target.value) })} className="w-40 accent-sky-300" />
+        </label>
+      )}
+    </div>
+  )
+}
+
+export default function Rest({ setBreath, onFinish, onBack, sound = { kind: 'off', volume: 0.5 }, setSound = () => {} }) {
   const [active, setActive] = useState(null)
   const [left, setLeft] = useState(0)
   const [phase, setPhase] = useState(0)
+  const player = useRef(null)
+
+  // The chosen soundscape plays only while a rest is running, and fades out when it ends.
+  useEffect(() => {
+    if (!active) return
+    player.current = soundscape(sound.kind, sound.volume)
+    return () => { player.current?.stop(); player.current = null }
+  }, [active, sound.kind]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { player.current?.setVolume(sound.volume) }, [sound.volume])
 
   useEffect(() => {
     if (!active) return
@@ -55,6 +86,7 @@ export default function Rest({ setBreath, onFinish, onBack }) {
         )}
         <p className="mt-2 text-slate-300">Nothing else needs you right now. {mm}:{ss}</p>
         <button className="btn-ghost mt-6" onClick={() => onFinish(active)}>I'm back</button>
+        <div className="w-full text-left"><SoundPicker sound={sound} setSound={setSound} /></div>
       </Screen>
     )
   }
@@ -77,6 +109,7 @@ export default function Rest({ setBreath, onFinish, onBack }) {
           </TiltCard>
         ))}
       </div>
+      <SoundPicker sound={sound} setSound={setSound} />
     </Screen>
   )
 }

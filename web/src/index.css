@@ -84,3 +84,13 @@ body.readable {
     animation: none;
   }
 }
+
+/* "My report": print or save as PDF with the app's colours, without the 3D scene or navigation. */
+@media print {
+  @page { margin: 12mm; }
+  html, body, #root { background: #07061a !important; height: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  canvas, nav, .no-print { display: none !important; }
+  .report { padding-top: 0 !important; padding-bottom: 0 !important; max-width: none; }
+  .glass { backdrop-filter: none !important; background: #15123a !important; break-inside: avoid; }
+  .text-gradient, .text-gradient-cool { animation: none !important; background: none !important; color: #f9a8d4 !important; -webkit-text-fill-color: #f9a8d4; }
+}

@@ -44,6 +44,9 @@ export default function Settings({ prefs, update, engine, onWipe }) {
           )}
           <Toggle label="Pause everything for today" checked={paused} onChange={(v) => update({ pausedUntil: v ? endOfDay() : 0 })} />
           {inDesktop && (
+            <Toggle label="Soft chime with notifications" hint="A gentle two-note chime instead of the Windows sound." checked={prefs.chime} onChange={(v) => update({ chime: v })} />
+          )}
+          {inDesktop && (
             <Toggle label="Start Kindling when I sign in" hint="Waits quietly in the tray. Closing the window keeps it there; quit from the tray icon." checked={startAtLogin} onChange={login} />
           )}
         </div>

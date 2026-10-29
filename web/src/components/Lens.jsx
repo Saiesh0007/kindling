@@ -11,7 +11,7 @@ const STATE = {
   stuck: ['Might be a stuck moment…', 'text-amber-300'],
 }
 
-function Meter({ label, value, text, from, to }) {
+export function Meter({ label, value, text, from, to }) {
   return (
     <div>
       <div className="flex items-baseline justify-between text-xs">
@@ -87,7 +87,7 @@ export function CameraPill({ status, onStop }) {
   if (status === 'off' || status === 'error') return null
   return (
     <motion.button initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} onClick={onStop}
-      className="chip fixed left-4 top-4 z-30 border-emerald-400/40 bg-night-950/90 backdrop-blur hover:bg-night-900" title="Turn the camera lens off">
+      className="no-print chip fixed left-4 top-4 z-30 border-emerald-400/40 bg-night-950/90 backdrop-blur hover:bg-night-900" title="Turn the camera lens off">
       <span className={`h-2 w-2 rounded-full ${status === 'hidden' ? 'bg-slate-400' : 'animate-pulse bg-emerald-400'}`} />
       <span className="sm:hidden">Lens on</span><span className="hidden sm:inline">Camera lens on · tap to stop</span>
     </motion.button>

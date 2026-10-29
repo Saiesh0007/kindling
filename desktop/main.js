@@ -9,14 +9,15 @@
 //   * focus lens  - runs in the page and keeps working while Kindling sits in the tray.
 // Everything stays on this laptop. Signals are hints, never proof of how someone feels.
 
-const { app, BrowserWindow, Menu, Notification, Tray, ipcMain, nativeImage, powerMonitor, session, shell } = require('electron')
+const { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, powerMonitor, session, shell } = require('electron')
+const fs = require('node:fs')
 const path = require('node:path')
+const readline = require('node:readline')
 const { spawn } = require('node:child_process')
 
 const PORT = Number(process.env.KINDLING_PORT) || 8765
 const ORIGIN = `http://127.0.0.1:${PORT}`
 const ICON = path.join(__dirname, 'assets', 'icon.png')
-const SWITCH_THRESHOLD = 12
 const IDLE_SECONDS = 180
 const MAX_PAUSE_MS = 20 * 60_000
 const COOLDOWN_MS = 30 * 60_000
@@ -138,7 +139,14 @@ const shown = new Set() // Windows drops a notification whose object is garbage-
 function toast(reason, always = false) {
   if (!always && win?.isVisible() && win.isFocused()) return // the in-app check-in is already on screen
   if (!Notification.isSupported()) return
-  const n = new Notification({ title: 'Kindling', body: MESSAGES[reason] || MESSAGES.demo, icon: ICON, silent: true })
+  // Windows' own sound is silenced; the page plays Kindling's softer chime instead (if turned on).
+  win?.webContents.send('kindling:chime')
+  notify(MESSAGES[reason] || MESSAGES.demo)
+}
+
+
+function notify(body, title = 'Kindling') {
+  const n = new Notification({ title, body, icon: ICON, silent: true })
   shown.add(n)
   const done = () => shown.delete(n)
   n.on('click', () => { done(); showWindow() })
@@ -163,7 +171,7 @@ async function watchApps() {
   if (!signals.enabled || !signals.tabs) return
   try {
     const a = await (await fetch(`${ORIGIN}/api/desktop/activity`)).json()
-    if (a.switches + a.tabs >= SWITCH_THRESHOLD) checkIn(a.tabs > a.switches ? 'tabs' : 'apps')
+    if (a.switches + a.tabs >= (a.threshold || 12)) checkIn(a.tabs > a.switches ? 'tabs' : 'apps')
   } catch {
     // the server is restarting; try again next tick
   }
@@ -190,6 +198,71 @@ ipcMain.on('kindling:signals', (_e, s) => {
 ipcMain.handle('kindling:get-login', () => getStartAtLogin())
 ipcMain.handle('kindling:set-login', (_e, on) => setStartAtLogin(!!on))
 ipcMain.on('kindling:simulate', () => checkIn('demo', { force: true }))
+
+// Live status for the signals card on Home: idle time and when check-ins may ask again.
+ipcMain.handle('kindling:status', () => ({
+  idleSeconds: powerMonitor.getSystemIdleTime(),
+  idleThreshold: IDLE_SECONDS,
+  quietUntil: Math.max(lastCheckIn + COOLDOWN_MS, signals.snoozedUntil || 0, signals.pausedUntil || 0),
+}))
+
+// "My report": the Report screen, saved as a PDF wherever the user chooses.
+ipcMain.handle('kindling:save-report', async () => {
+  const day = new Date().toISOString().slice(0, 10)
+  const { canceled, filePath } = process.env.KINDLING_REPORT_PATH // tests skip the dialog
+    ? { canceled: false, filePath: process.env.KINDLING_REPORT_PATH }
+    : await dialog.showSaveDialog(win, {
+    title: 'Save my Kindling report',
+    defaultPath: path.join(app.getPath('documents'), `Kindling report ${day}.pdf`),
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  })
+  if (canceled || !filePath) return null
+  const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { marginType: 'none' } })
+  fs.writeFileSync(filePath, pdf)
+  if (!process.env.KINDLING_REPORT_PATH) shell.showItemInFolder(filePath)
+  return filePath
+})
+
+// Voice brain-dump with Windows' built-in offline speech recognizer (System.Speech): audio is
+// recognised on this laptop and never recorded or sent. Each phrase streams back as it is heard;
+// it stops after a few quiet seconds or when the user taps stop.
+const DICTATE = `
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+try {
+  Add-Type -AssemblyName System.Speech
+  $info = [System.Speech.Recognition.SpeechRecognitionEngine]::InstalledRecognizers() | Select-Object -First 1
+  if (-not $info) { 'E:none'; exit }
+  $r = New-Object System.Speech.Recognition.SpeechRecognitionEngine($info)
+  $r.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar))
+  if ($env:KINDLING_DICTATE_WAV) { $r.SetInputToWaveFile($env:KINDLING_DICTATE_WAV) } else { $r.SetInputToDefaultAudioDevice() }
+  $r.InitialSilenceTimeout = [TimeSpan]::FromSeconds(6)
+  $r.EndSilenceTimeout = [TimeSpan]::FromSeconds(1.2)
+  'R:'
+  $quiet = 0
+  while ($quiet -lt 2) {
+    $res = $r.Recognize([TimeSpan]::FromSeconds(20))
+    if ($res -and $res.Text) { 'T:' + $res.Text; $quiet = 0 } else { $quiet++ }
+    if ($env:KINDLING_DICTATE_WAV -and -not $res) { break }
+  }
+} catch { if ($_.Exception.Message -match 'audio|device') { 'E:mic' } else { 'E:' + $_.Exception.Message } }
+`
+let dictation = null
+
+ipcMain.handle('kindling:dictate-start', (e) => {
+  if (dictation) return true
+  const encoded = Buffer.from(DICTATE, 'utf16le').toString('base64')
+  dictation = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { windowsHide: true })
+  const send = (msg) => { if (!e.sender.isDestroyed()) e.sender.send('kindling:dictation', msg) }
+  readline.createInterface({ input: dictation.stdout }).on('line', (line) => {
+    if (line.startsWith('T:')) send({ text: line.slice(2).trim() })
+    else if (line.startsWith('R:')) send({ ready: true })
+    else if (line.startsWith('E:')) send({ error: line.slice(2).trim() || 'unknown' })
+  })
+  dictation.on('exit', () => { dictation = null; send({ done: true }) })
+  return true
+})
+ipcMain.handle('kindling:dictate-stop', () => { dictation?.kill(); return true })
 ipcMain.on('kindling:notify', (_e, reason) => {
   lastCheckIn = Date.now()
   toast(reason)
@@ -217,9 +290,12 @@ app.whenReady().then(async () => {
   tray.on('click', showWindow)
   refreshTray()
 
-  createWindow(!process.argv.includes('--hidden'))
+  const atSignIn = process.argv.includes('--hidden')
+  createWindow(!atSignIn)
   await startServer()
   win.loadURL(ORIGIN)
+  // Started by Windows at sign-in, with no window: say so once, quietly, so it's clear it worked.
+  if (atSignIn && Notification.isSupported()) notify('Kindling is ready in the tray. It only checks in if you turned check-ins on.', 'Kindling started')
 
   powerMonitor.on('lock-screen', () => { locked = true; idleSince = 0 })
   powerMonitor.on('unlock-screen', () => { locked = false })

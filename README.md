@@ -58,9 +58,13 @@ Install with **`Kindling-Setup.exe`**. It bundles everything (server, strategy l
 What the desktop app adds:
 
 - **Lives in the tray.** Closing the window keeps Kindling running; quit from the tray icon. The tray menu also has *Pause check-ins for today* and *Demo: send a check-in in 5 seconds*.
-- **Start when I sign in** (opt-in, in onboarding and Settings): Kindling starts quietly in the tray each time you log in. The switch reads and writes the real Windows startup entry, so it always matches what will happen.
+- **Start when I sign in** (opt-in, in onboarding and Settings): Kindling starts quietly in the tray each time you log in, a few seconds after the desktop appears, and shows a quiet "Kindling is ready in the tray" notice. The switch reads and writes the real Windows startup entry, so it always matches what will happen.
+- **Live signals card** on Home: how many app and tab switches in the last 5 minutes (out of the 12 that prompt a check-in), the long-pause idle timer, and when check-ins are resting after a recent one or a "Not now".
 - **System-wide signals**, all opt-in: *app and tab hopping* (how often the foreground window or its title changes in 5 minutes, so browser tab switches count without the extension; titles are compared as in-memory hashes, never stored or sent), *long pauses* (no keyboard or mouse for 3 to 20 minutes, then you return), and the *webcam lens*, which keeps working while Kindling is in the tray.
-- **Windows notifications** for check-ins when the window is hidden. Clicking one opens Kindling with the check-in. Demo check-ins never start the 30-minute cooldown, so real signals keep working after a demo.
+- **Windows notifications** for check-ins when the window is hidden, with a soft two-note chime instead of the Windows sound (switch it off in Settings). Clicking one opens Kindling with the check-in. Demo check-ins never start the 30-minute cooldown, so real signals keep working after a demo.
+- **Offline voice brain-dump:** *Say it instead* uses Windows' built-in speech recognizer (System.Speech), so speech is recognised on the laptop and never recorded or sent. It stops after a quiet pause. Allow desktop apps under *Windows Settings → Privacy & security → Microphone*.
+- **Rest with soothing sound:** soft rain, slow waves or a warm hum while any rest runs, with a volume slider. The sounds are generated in the app with the Web Audio API, so there are no audio files.
+- **My report** (*Kind wins → My report*): tiny starts, steps, rests and check-ins for the last 7 days, 30 days or everything, a day-by-day chart, and which strategies seem to help. *Save as PDF* writes it wherever you choose. It is built on the device and never uploaded.
 - **Local AI:** if [Ollama](https://ollama.com) is installed with `llama3.2:3b`, the desktop app uses it automatically, loads the model in the background and keeps it warm for 30 minutes.
 - **Permissions:** the camera (video only) and notifications are granted to Kindling's own page only. If the lens says the camera can't start, allow desktop apps in *Windows Settings → Privacy & security → Camera*.
 
@@ -120,13 +124,14 @@ Kindling detects Ollama automatically, loads the model in the background and kee
 1. **Onboarding:** consent first. Check-ins are off by default, and each signal is explained with its own toggle.
 2. **Focus lens (Computer Vision, on-device):** in Settings turn on *Webcam focus lens* and choose *30 s (demo)*. On Home, the lens card calibrates to your normal face for about 12 s, then shows gaze stillness, blinks per minute and tension. Look relaxed or smile: "Looks settled. No nudge needed." Then stare at one spot, blink less and frown or press your lips for about 30 s: a check-in appears that explains *why* it asked. The camera pill at the top-left turns it off in one tap.
 3. **Check-in:** or click *Simulate signal*. One question, three equal-weight answers ("Yes", "Not now", "Pause for today"). In the extension this goes through the real background worker and shows a system notification. In the desktop app, close the window (Kindling stays in the tray), then choose *Demo: send a check-in in 5 seconds* from the tray menu: a Windows notification appears, and clicking it opens the check-in.
-4. **Energy:** tap the spoons. The 3D orb changes colour with energy. Pick 1 spoon and press *Help me start*: Kindling gently offers rest first.
-5. **Brain-dump:** pick the example *"I'm so overwhelmed, my DSA coding assignment is huge and I can't start"*. Kindling notices the overwhelm, lowers the step count, validates, and shows **one** step.
-6. **Smaller / Change / Skip:** every option is low-demand and penalty-free. *Strategy* shows which coping strategy was retrieved and **why**: meaning match %, matched words, task type, energy fit, and whether it helped this user before. Try a phrasing with no keywords, like *"I keep doomscrolling instead of revising"*: hybrid search still finds the transition ritual.
-7. **Did it:** a spark burst and "You started. That counts." The win is saved to *Kind wins* (no streaks), and *What seems to help you* shows the strategies Kindling has learned to suggest more often.
-8. **Rest:** *Breathe with the orb* makes the 3D orb expand and contract for box breathing. "Welcome back. Rest counts."
-9. **Safety:** typing something like "I want to die" routes to a calm support screen with the Tele-MANAS helpline (14416) instead of task steps.
-10. **Settings:** dyslexia-friendly font, high contrast, reduced motion, pause for today, delete all data.
+4. **Desktop extras:** on Home the live signals card counts app and tab switches; switch a few browser tabs and watch it move. In *Kind wins → My report*, show the summary and *Save as PDF*.
+5. **Energy:** tap the spoons. The 3D orb changes colour with energy. Pick 1 spoon and press *Help me start*: Kindling gently offers rest first.
+6. **Brain-dump:** in the desktop app tap *Say it instead* and speak, or pick the example *"I'm so overwhelmed, my DSA coding assignment is huge and I can't start"*. Kindling notices the overwhelm, lowers the step count, validates, and shows **one** step.
+7. **Smaller / Change / Skip:** every option is low-demand and penalty-free. *Strategy* shows which coping strategy was retrieved and **why**: meaning match %, matched words, task type, energy fit, and whether it helped this user before. Try a phrasing with no keywords, like *"I keep doomscrolling instead of revising"*: hybrid search still finds the transition ritual.
+8. **Did it:** a spark burst and "You started. That counts." The win is saved to *Kind wins* (no streaks), and *What seems to help you* shows the strategies Kindling has learned to suggest more often.
+9. **Rest:** choose *Soft rain*, then *Breathe with the orb*: the 3D orb expands and contracts for box breathing while the rain plays. "Welcome back. Rest counts."
+10. **Safety:** typing something like "I want to die" routes to a calm support screen with the Tele-MANAS helpline (14416) instead of task steps.
+11. **Settings:** dyslexia-friendly font, high contrast, reduced motion, pause for today, delete all data.
 
 ---
 
@@ -182,9 +187,9 @@ Everything runs on the user's laptop. In the desktop app, Electron starts the bu
 
 - **Signals used:** tab-switch count (extension) or app and tab switch count (desktop) per 5 minutes, idle-then-return, self-reported energy, text the user chooses to type and, only if turned on, the webcam focus lens.
 - **Webcam lens:** off by default, experimental, web and desktop app. Frames are analysed in memory by MediaPipe in the browser and discarded; only a few numbers per second are kept, in memory. No images, video or face data are stored or sent. It compares you to your own calibration, not a population norm, always shows a "camera on" pill, and only ever asks a question with its reasons.
-- **Never used:** microphone (except when the user presses *Say it instead*), keystrokes, URLs, page content, app names, location. Window titles are never stored or sent; the desktop app only compares a short hash of the active window's title in memory to notice a tab switch.
+- **Never used:** microphone (except while the user is using *Say it instead*; in the desktop app speech is recognised offline by Windows and never recorded), keystrokes, URLs, page content, app names, location. Window titles are never stored or sent; the desktop app only compares a short hash of the active window's title in memory to notice a tab switch.
 - All signals are opt-in and off by default. Pause for today, or "Not now" (30-minute cooldown), at any time.
-- Wins and settings are encrypted in IndexedDB. *Delete all my data* wipes everything in one tap.
+- Wins, check-ins and settings are encrypted in IndexedDB. *My report* is built from them on the device. *Delete all my data* wipes everything in one tap.
 - The server keeps no accounts and no chat logs, and nothing is used for training.
 
 ## Tests
@@ -210,6 +215,9 @@ backend/app/guardrails.py     tone softening, overwhelm + crisis detection
 backend/app/data/strategies.json   the coping-strategy knowledge base
 web/src/                      React app (screens, 3D scene, encrypted store)
 web/src/lib/lens.js           on-device webcam focus lens (MediaPipe)
+web/src/lib/sound.js          generated chime and rest soundscapes (Web Audio)
+web/src/screens/Report.jsx    "My report": summary, chart, PDF / print
+web/src/components/Signals.jsx   live signals card (desktop app)
 extension/                    MV3 manifest + background signal watcher
 desktop/main.js               Electron app: tray, start at login, signals, notifications
 desktop/scripts/build-server.mjs   bundles the server with PyInstaller for the installer
