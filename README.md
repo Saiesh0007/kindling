@@ -10,7 +10,7 @@ Track: **LLMs & RAG (The Task Sequencer)**. Also: an on-device **Computer Vision
 
 | | |
 |---|---|
-| **Windows installer** | [Kindling.Setup.1.2.0.exe](https://github.com/Saiesh0007/kindling/releases/download/v1.2.0/Kindling.Setup.1.2.0.exe) ([release notes](https://github.com/Saiesh0007/kindling/releases/tag/v1.2.0)) |
+| **Windows installer** | [Kindling-Setup.exe](https://github.com/Saiesh0007/kindling/releases/latest/download/Kindling-Setup.exe) ([release notes](https://github.com/Saiesh0007/kindling/releases/latest)) |
 | **Live web demo** | https://kindling-0gj7.onrender.com (free tier: the first visit after a quiet spell takes about a minute to wake up) |
 
 ---
@@ -29,7 +29,7 @@ Kindling follows the same four stages every time: **notice → ask → help → 
 
 | Signal | Where | What is measured | What is never read |
 |---|---|---|---|
-| App-hopping | Desktop app | How often the foreground window changes in 5 minutes (12+ switches is a hint) | Window titles, app names, screen content |
+| App and tab hopping | Desktop app | How often the foreground window changes, or its title changes (a tab switch in any browser), in 5 minutes; 12+ switches is a hint | Stored or sent titles, app names, screen content: titles are only compared as short in-memory hashes, with digits ignored so counters like "(3) Inbox" don't count |
 | Tab-hopping | Browser extension | Tab switches in 5 minutes | URLs, page content |
 | Long pause, then return | Desktop app and extension | No keyboard or mouse for 3 minutes, then a return within 20 minutes (a locked screen is ignored) | Keystrokes |
 | Focus lens | Desktop and web app (webcam) | Gaze stillness, blinks per minute and facial tension, each compared to the user's own 12-second calibration | Images or video: frames are analysed in memory and discarded |
@@ -53,14 +53,15 @@ The user sees **one step at a time**, with *Did it*, *Smaller*, *Change* and *Sk
 
 ## Desktop app (Windows)
 
-Install with **`Kindling Setup 1.2.0.exe`**. It bundles everything (server, strategy library, embedding model, web app), so it needs no Python, Node or internet. Windows SmartScreen may warn because the installer is not code-signed: choose *More info → Run anyway*.
+Install with **`Kindling-Setup.exe`**. It bundles everything (server, strategy library, embedding model, web app), so it needs no Python, Node or internet. Windows SmartScreen may warn because the installer is not code-signed: choose *More info → Run anyway*.
 
 What the desktop app adds:
 
 - **Lives in the tray.** Closing the window keeps Kindling running; quit from the tray icon. The tray menu also has *Pause check-ins for today* and *Demo: send a check-in in 5 seconds*.
-- **Start when I sign in** (opt-in, in onboarding and Settings): Kindling starts quietly in the tray each time you log in.
-- **System-wide signals**, all opt-in: *app-hopping* (how often the foreground window changes in 5 minutes; window handles only, never titles or app names), *long pauses* (no keyboard or mouse for 3 to 20 minutes, then you return), and the *webcam lens*, which keeps working while Kindling is in the tray.
-- **Windows notifications** for check-ins when the window is hidden. Clicking one opens Kindling with the check-in.
+- **Start when I sign in** (opt-in, in onboarding and Settings): Kindling starts quietly in the tray each time you log in. The switch reads and writes the real Windows startup entry, so it always matches what will happen.
+- **System-wide signals**, all opt-in: *app and tab hopping* (how often the foreground window or its title changes in 5 minutes, so browser tab switches count without the extension; titles are compared as in-memory hashes, never stored or sent), *long pauses* (no keyboard or mouse for 3 to 20 minutes, then you return), and the *webcam lens*, which keeps working while Kindling is in the tray.
+- **Windows notifications** for check-ins when the window is hidden. Clicking one opens Kindling with the check-in. Demo check-ins never start the 30-minute cooldown, so real signals keep working after a demo.
+- **Local AI:** if [Ollama](https://ollama.com) is installed with `llama3.2:3b`, the desktop app uses it automatically, loads the model in the background and keeps it warm for 30 minutes.
 - **Permissions:** the camera (video only) and notifications are granted to Kindling's own page only. If the lens says the camera can't start, allow desktop apps in *Windows Settings → Privacy & security → Camera*.
 
 Run from source, or build the installer:
@@ -69,7 +70,7 @@ Run from source, or build the installer:
 cd desktop
 npm install
 npm start            :: uses backend\.venv, so run start.bat once first
-npm run dist         :: builds desktop\release\Kindling Setup 1.2.0.exe
+npm run dist         :: builds desktop\release\Kindling-Setup.exe
 ```
 
 ## Run it in the browser (Windows)
@@ -103,14 +104,14 @@ winget install Ollama.Ollama
 ollama pull llama3.2:3b
 ```
 
-Kindling detects Ollama automatically. The chip at the top of the home screen turns green ("Local AI"). Use another model with `set KINDLING_MODEL=qwen2.5:3b` before starting.
+Kindling detects Ollama automatically, loads the model in the background and keeps it warm for 30 minutes. The chip at the top of the home screen turns green ("Local AI"). On an older laptop CPU a 3B model takes about 15 seconds to write steps, so the brain-dump screen says so while it works; *Smaller* always uses the instant built-in writer. Use another model with `set KINDLING_MODEL=qwen2.5:3b` before starting (a comma-separated list picks the first one installed).
 
 ### Load the extension
 
 1. Run `npm run build:ext` in `web/` (start.bat does this).
 2. Open `chrome://extensions` (or `edge://extensions`) and turn on **Developer mode**.
 3. Click **Load unpacked** and pick the `extension/` folder.
-4. Click the Kindling icon to open the side panel. Keep the server running.
+4. Click the Kindling icon to open the side panel. Keep the server running: either `start.bat` (port 8000) or the desktop app (port 8765), which the extension finds automatically.
 
 ---
 
@@ -138,7 +139,7 @@ Everything runs on the user's laptop. In the desktop app, Electron starts the bu
  ┌───────────────────────────────┐               ┌──────────────────────────────────────┐
  │ Signal watcher                │               │ FastAPI  /api/sequence  /api/health  │
  │  desktop: Electron tray app   │               │          /api/desktop/activity       │
- │   • app-switch counts         │               │   │                                  │
+ │   • app + tab switch counts   │               │   │                                  │
  │   • idle → return, lock-aware │               │   │                                  │
  │   • Windows notifications     │               │   │                                  │
  │  browser: extension worker    │               │   │                                  │
@@ -179,9 +180,9 @@ Everything runs on the user's laptop. In the desktop app, Electron starts the bu
 
 ## Privacy
 
-- **Signals used:** tab-switch count (extension) or app-switch count (desktop) per 5 minutes, idle-then-return, self-reported energy, text the user chooses to type and, only if turned on, the webcam focus lens.
+- **Signals used:** tab-switch count (extension) or app and tab switch count (desktop) per 5 minutes, idle-then-return, self-reported energy, text the user chooses to type and, only if turned on, the webcam focus lens.
 - **Webcam lens:** off by default, experimental, web and desktop app. Frames are analysed in memory by MediaPipe in the browser and discarded; only a few numbers per second are kept, in memory. No images, video or face data are stored or sent. It compares you to your own calibration, not a population norm, always shows a "camera on" pill, and only ever asks a question with its reasons.
-- **Never used:** microphone (except when the user presses *Say it instead*), keystrokes, URLs, page content, window titles, app names, location.
+- **Never used:** microphone (except when the user presses *Say it instead*), keystrokes, URLs, page content, app names, location. Window titles are never stored or sent; the desktop app only compares a short hash of the active window's title in memory to notice a tab switch.
 - All signals are opt-in and off by default. Pause for today, or "Not now" (30-minute cooldown), at any time.
 - Wins and settings are encrypted in IndexedDB. *Delete all my data* wipes everything in one tap.
 - The server keeps no accounts and no chat logs, and nothing is used for training.
@@ -203,7 +204,7 @@ backend/app/main.py           API, static hosting of the web build
 backend/app/rag.py            hybrid strategy retrieval (BM25 + embeddings + feedback)
 backend/app/semantic.py       local MiniLM embeddings via fastembed
 backend/app/sequencer.py      Ollama + built-in micro-step writer
-backend/app/desktop.py        app-switch counter (desktop app only)
+backend/app/desktop.py        app and tab switch counter (desktop app only)
 backend/server.py             entry point for the bundled desktop server
 backend/app/guardrails.py     tone softening, overwhelm + crisis detection
 backend/app/data/strategies.json   the coping-strategy knowledge base

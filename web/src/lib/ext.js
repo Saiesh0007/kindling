@@ -14,7 +14,6 @@ export function syncSignals(prefs) {
       lens: prefs.signals.lens,
       pausedUntil: prefs.pausedUntil,
       snoozedUntil: prefs.snoozedUntil,
-      startAtLogin: prefs.startAtLogin,
     })
   }
   if (!inExtension) return

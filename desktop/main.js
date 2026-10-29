@@ -2,8 +2,9 @@
 // user's opt-in signals into gentle Windows notifications.
 //
 // Signals (only when the user has opted in, mirroring the browser extension):
-//   * app-hopping - how often the foreground window changes in 5 minutes. The server compares
-//                   window handles only: no titles, app names or screen content are ever read.
+//   * app and tab hopping - how often the foreground window, or its title, changes in 5 minutes.
+//                   The server compares titles only as short in-memory hashes: titles, app names
+//                   and screen content are never stored or sent.
 //   * long pause  - no keyboard or mouse for 3 to 20 minutes, then the user comes back.
 //   * focus lens  - runs in the page and keeps working while Kindling sits in the tray.
 // Everything stays on this laptop. Signals are hints, never proof of how someone feels.
@@ -12,7 +13,7 @@ const { app, BrowserWindow, Menu, Notification, Tray, ipcMain, nativeImage, powe
 const path = require('node:path')
 const { spawn } = require('node:child_process')
 
-const PORT = 8765
+const PORT = Number(process.env.KINDLING_PORT) || 8765
 const ORIGIN = `http://127.0.0.1:${PORT}`
 const ICON = path.join(__dirname, 'assets', 'icon.png')
 const SWITCH_THRESHOLD = 12
@@ -21,11 +22,14 @@ const MAX_PAUSE_MS = 20 * 60_000
 const COOLDOWN_MS = 30 * 60_000
 const MESSAGES = {
   apps: "You've been hopping between a lot of apps. Want a tiny nudge?",
+  tabs: "You've been hopping between a lot of tabs. Want a tiny nudge?",
   pause: 'Welcome back. Want help picking one tiny step?',
   lens: 'Looks like a tricky moment. Want a tiny nudge?',
   demo: 'Looks like a tricky moment. Want a tiny nudge?',
 }
 
+// A separate profile (used by tests) never touches the installed app's data or lock.
+if (process.env.KINDLING_PROFILE) app.setPath('userData', process.env.KINDLING_PROFILE)
 if (!app.requestSingleInstanceLock()) app.quit()
 app.setAppUserModelId('com.kindling.desktop') // Windows needs this to show notifications
 
@@ -34,7 +38,6 @@ let tray = null
 let server = null
 let quitting = false
 let signals = { enabled: false, tabs: false, pause: false, lens: false, pausedUntil: 0, snoozedUntil: 0 }
-let startAtLogin = null
 let lastCheckIn = 0
 let idleSince = 0
 let locked = false
@@ -112,31 +115,46 @@ function refreshTray() {
   tray.setToolTip(paused ? 'Kindling (paused for today)' : 'Kindling')
 }
 
-// ---- start at login (only when the user turns it on in Kindling) ----
+// ---- start at login ----
+// Windows is the source of truth, so the switch always shows what will really happen at sign-in,
+// including after "Startup apps" is changed in Task Manager or Kindling's data is deleted.
+const loginItem = () => (app.isPackaged
+  ? { args: ['--hidden'] }
+  : { path: process.execPath, args: [app.getAppPath(), '--hidden'] })
+
+function getStartAtLogin() {
+  const s = app.getLoginItemSettings(loginItem())
+  return s.executableWillLaunchAtLogin ?? s.openAtLogin
+}
+
 function setStartAtLogin(on) {
-  if (on === startAtLogin) return
-  startAtLogin = on
-  const opts = app.isPackaged
-    ? { openAtLogin: on, args: ['--hidden'] }
-    : { openAtLogin: on, path: process.execPath, args: [app.getAppPath(), '--hidden'] }
-  app.setLoginItemSettings(opts)
+  app.setLoginItemSettings({ ...loginItem(), openAtLogin: on, enabled: on })
+  return getStartAtLogin()
 }
 
 // ---- check-ins ----
+const shown = new Set() // Windows drops a notification whose object is garbage-collected
+
 function toast(reason, always = false) {
   if (!always && win?.isVisible() && win.isFocused()) return // the in-app check-in is already on screen
+  if (!Notification.isSupported()) return
   const n = new Notification({ title: 'Kindling', body: MESSAGES[reason] || MESSAGES.demo, icon: ICON, silent: true })
-  n.on('click', showWindow)
+  shown.add(n)
+  const done = () => shown.delete(n)
+  n.on('click', () => { done(); showWindow() })
+  n.on('close', done)
+  n.on('failed', done)
   n.show()
 }
 
+// Demo check-ins (forced) skip the rules and don't start the cooldown, so real signals still work.
 function checkIn(reason, { force = false, toast: always = false } = {}) {
   const now = Date.now()
   if (!force) {
     if (!signals.enabled || signals.pausedUntil > now || signals.snoozedUntil > now) return
     if (now - lastCheckIn < COOLDOWN_MS) return
+    lastCheckIn = now
   }
-  lastCheckIn = now
   win?.webContents.send('kindling:checkin', { reason })
   toast(reason, always)
 }
@@ -145,7 +163,7 @@ async function watchApps() {
   if (!signals.enabled || !signals.tabs) return
   try {
     const a = await (await fetch(`${ORIGIN}/api/desktop/activity`)).json()
-    if (a.switches >= SWITCH_THRESHOLD) checkIn('apps')
+    if (a.switches + a.tabs >= SWITCH_THRESHOLD) checkIn(a.tabs > a.switches ? 'tabs' : 'apps')
   } catch {
     // the server is restarting; try again next tick
   }
@@ -167,9 +185,10 @@ function watchIdle() {
 // ---- messages from the page ----
 ipcMain.on('kindling:signals', (_e, s) => {
   signals = { ...signals, ...s }
-  setStartAtLogin(!!s.startAtLogin)
   if (tray) refreshTray()
 })
+ipcMain.handle('kindling:get-login', () => getStartAtLogin())
+ipcMain.handle('kindling:set-login', (_e, on) => setStartAtLogin(!!on))
 ipcMain.on('kindling:simulate', () => checkIn('demo', { force: true }))
 ipcMain.on('kindling:notify', (_e, reason) => {
   lastCheckIn = Date.now()

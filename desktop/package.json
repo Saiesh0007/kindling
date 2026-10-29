@@ -1,7 +1,7 @@
 {
   "name": "kindling-desktop",
   "productName": "Kindling",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A gentle, private task starter for when you feel stuck",
   "author": "Saiesh0007",
   "private": true,
@@ -34,6 +34,7 @@
       "icon": "assets/icon.png"
     },
     "nsis": {
+      "artifactName": "Kindling-Setup.${ext}",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,

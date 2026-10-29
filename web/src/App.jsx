@@ -27,7 +27,6 @@ const DEFAULT_PREFS = {
   contrast: false,
   reducedMotion: typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches,
   useLLM: true,
-  startAtLogin: false,
 }
 const COOLDOWN_MS = 30 * 60_000
 const LENS_SCREENS = ['home', 'wins', 'settings', 'dump']
@@ -201,7 +200,7 @@ export default function App() {
 
   let view
   if (!prefs.onboarded) {
-    view = <Onboarding key="onb" prefs={prefs} onDone={(signals, extra) => update({ onboarded: true, signals, ...extra })} />
+    view = <Onboarding key="onb" prefs={prefs} onDone={(signals) => update({ onboarded: true, signals })} />
   } else if (restDone) {
     view = (
       <Screen key="restdone" className="pt-[40vh]">

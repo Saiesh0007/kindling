@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Feather, ShieldCheck, Footprints } from 'lucide-react'
 import { Screen, TiltCard, Toggle } from '../components/ui.jsx'
-import { inDesktop, inExtension } from '../lib/ext.js'
+import { desktop, inDesktop, inExtension } from '../lib/ext.js'
 
 const POINTS = [
   [Footprints, 'One tiny step at a time', 'Never a long to-do list. Steps shrink to fit your energy.'],
@@ -11,7 +11,7 @@ const POINTS = [
 
 export default function Onboarding({ prefs, onDone }) {
   const [signals, setSignals] = useState(prefs.signals)
-  const [startAtLogin, setStartAtLogin] = useState(prefs.startAtLogin)
+  const [startAtLogin, setStartAtLogin] = useState(false)
   const set = (k, v) => setSignals((s) => ({ ...s, [k]: v, ...(k === 'enabled' && !v ? { tabs: false, pause: false, lens: false } : {}) }))
 
   return (
@@ -42,7 +42,7 @@ export default function Onboarding({ prefs, onDone }) {
         </p>
         <div className="mt-2 divide-y divide-white/10">
           <Toggle label="Allow gentle check-ins" checked={signals.enabled} onChange={(v) => set('enabled', v)} />
-          <Toggle label={inDesktop ? 'App-hopping' : 'Tab-hopping'} hint={inDesktop ? 'Counts app switches per 5 minutes. Never which apps or windows.' : 'Counts tab switches per 5 minutes. Never which sites.'} checked={signals.tabs} disabled={!signals.enabled} onChange={(v) => set('tabs', v)} />
+          <Toggle label={inDesktop ? 'App and tab hopping' : 'Tab-hopping'} hint={inDesktop ? 'Counts app and tab switches per 5 minutes. Window titles are compared in memory to spot a switch, never stored or sent.' : 'Counts tab switches per 5 minutes. Never which sites.'} checked={signals.tabs} disabled={!signals.enabled} onChange={(v) => set('tabs', v)} />
           <Toggle label="Long pauses" hint="Notices a long pause with no typing or mouse. Nothing is recorded." checked={signals.pause} disabled={!signals.enabled} onChange={(v) => set('pause', v)} />
           {!inExtension && (
             <Toggle label="Webcam focus lens (experimental)" hint="Notices a fixed stare, fewer blinks and tension, compared to your own normal. Analysed on this device; frames are never saved or sent." checked={!!signals.lens} disabled={!signals.enabled} onChange={(v) => set('lens', v)} />
@@ -53,7 +53,7 @@ export default function Onboarding({ prefs, onDone }) {
         </div>
       </TiltCard>
 
-      <button className="btn-primary mt-6 py-4 text-lg" onClick={() => onDone(signals, { startAtLogin })}>
+      <button className="btn-primary mt-6 py-4 text-lg" onClick={() => { if (inDesktop && startAtLogin) desktop.setStartAtLogin(true); onDone(signals) }}>
         Begin gently
       </button>
     </Screen>

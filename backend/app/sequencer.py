@@ -18,7 +18,9 @@ from .guardrails import clean_step, soften
 from .rag import TASK_TYPES, detect_task_types
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
-MODEL = os.getenv("KINDLING_MODEL", "llama3.2:3b")
+# Models to try, in order: the first one installed in Ollama is used. KINDLING_MODEL overrides.
+MODELS = [m.strip() for m in os.getenv("KINDLING_MODEL", "llama3.2:3b,llama3.2:1b").split(",") if m.strip()]
+KEEP_ALIVE = "30m"  # keep the model loaded between requests
 
 VERBS = {"coding": "work on the code", "essay": "write", "email": "write", "reading": "read",
          "exam": "revise", "cleaning": "tidy", "admin": "go through it"}
@@ -103,27 +105,50 @@ def builtin_steps(text: str, energy: int, strategy: dict, mode: str, current: st
 SYSTEM = """You are Kindling, a gentle executive-function companion for neurodivergent people (ADHD, autism) experiencing task paralysis.
 Rules:
 - Never imply laziness. Never use the words should, must, just, simply, lazy, failure, or mention deadlines.
-- Break the task into microscopic, concrete, verb-first steps. Each step takes under 5 minutes and needs almost no willpower.
+- Steps are instructions to the user: second person, verb first, in the order they are done, at most 12 words each.
+- Each step takes under 5 minutes and needs almost no willpower. The first step is the smallest and is based on the strategy.
 - Energy is on a 1-5 scale. Energy 1 -> exactly 1 step that is extremely tiny. Energy 2 -> 2 steps. Energy 3-5 -> 3 steps.
-- Base the first step on the provided strategy.
-- message: one warm, validating sentence (max 20 words). No exclamation marks.
+- message: one warm, validating sentence to the user, at most 15 words. No exclamation marks.
 - Do not diagnose anything.
-Respond ONLY with JSON: {"message": "...", "steps": ["...", "..."]}"""
+Respond ONLY with JSON, steps as plain strings:
+{"message": "That sounds heavy. Let's make the start tiny.", "steps": ["Open the document", "Write one rough sentence"]}"""
 
 
-_available = {"value": False, "checked": 0.0, "task": None}
+_available = {"value": False, "checked": 0.0, "task": None, "warm": None, "model": None}
+
+
+def model() -> str | None:
+    """The Ollama model in use, or None when no local model is available."""
+    return _available["model"] if _available["value"] else None
 
 
 async def _probe() -> bool:
     try:
         async with httpx.AsyncClient(timeout=1.0) as c:
             r = await c.get(f"{OLLAMA_URL}/api/tags")
-            names = [m["name"] for m in r.json().get("models", [])]
-            ok = any(n == MODEL or n.split(":")[0] == MODEL.split(":")[0] for n in names)
+            names = {m["name"] for m in r.json().get("models", [])}
+            chosen = next((m for m in MODELS if m in names or f"{m}:latest" in names), None)
+    except httpx.TimeoutException:
+        # Ollama is running but busy (it answers slowly while generating): keep what we knew.
+        _available["checked"] = time.monotonic()
+        return _available["value"]
     except Exception:
-        ok = False
-    _available.update(value=ok, checked=time.monotonic())
-    return ok
+        chosen = None
+    if chosen and (not _available["value"] or chosen != _available["model"]):
+        _available["model"] = chosen
+        _available["warm"] = asyncio.create_task(_warm(chosen))  # keep a reference until it finishes
+    _available.update(value=bool(chosen), checked=time.monotonic())
+    return bool(chosen)
+
+
+async def _warm(name: str) -> None:
+    """Load the model into memory as soon as Ollama is found, so the first real request
+    doesn't spend its timeout loading weights on a CPU."""
+    try:
+        async with httpx.AsyncClient(timeout=120) as c:
+            await c.post(f"{OLLAMA_URL}/api/generate", json={"model": name, "prompt": "", "keep_alive": KEEP_ALIVE})
+    except Exception:
+        pass
 
 
 async def llm_available(wait: bool = False) -> bool:
@@ -134,6 +159,19 @@ async def llm_available(wait: bool = False) -> bool:
     if time.monotonic() - _available["checked"] > 10 and not (_available["task"] and not _available["task"].done()):
         _available["task"] = asyncio.create_task(_probe())
     return _available["value"]
+
+
+def _step_text(step) -> str:
+    """Small models sometimes return a step as an object, or as an object encoded in a string,
+    e.g. '{"title": "Open your notes", "description": "..."}'. Keep just the step's text."""
+    if isinstance(step, str) and step.strip().startswith("{"):
+        try:
+            step = json.loads(step)
+        except ValueError:
+            return ""
+    if isinstance(step, dict):
+        step = next((step[k] for k in ("step", "text", "title", "action", "description") if isinstance(step.get(k), str)), "")
+    return step.strip() if isinstance(step, str) else ""
 
 
 async def llm_steps(text: str, energy: int, strategy: dict, mode: str, current: str | None) -> tuple[str, list[str]] | None:
@@ -147,14 +185,16 @@ async def llm_steps(text: str, energy: int, strategy: dict, mode: str, current: 
     elif mode == "change" and current:
         user["instruction"] = f"The user wants a different approach than: \"{current}\". Use the new strategy."
     try:
-        async with httpx.AsyncClient(timeout=25) as c:
+        async with httpx.AsyncClient(timeout=45) as c:  # a 3B model on an older laptop CPU takes 15-20 s
             r = await c.post(f"{OLLAMA_URL}/api/chat", json={
-                "model": MODEL, "stream": False, "format": "json",
-                "options": {"temperature": 0.6},
+                "model": _available["model"], "stream": False, "format": "json", "keep_alive": KEEP_ALIVE,
+                "options": {"temperature": 0.4, "num_predict": 160},
                 "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": json.dumps(user)}],
             })
             data = json.loads(r.json()["message"]["content"])
-        steps = [clean_step(s) for s in data.get("steps", []) if isinstance(s, str) and s.strip()][:3]
+        raw = data.get("steps", [])
+        limit = 1 if mode == "smaller" or energy <= 1 else 2 if energy == 2 else 3  # small models drift
+        steps = [clean_step(t) for t in map(_step_text, raw if isinstance(raw, list) else [raw]) if t][:limit]
         if not steps:
             return None
         return soften(str(data.get("message", ""))), steps

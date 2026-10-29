@@ -78,3 +78,12 @@ def test_semantic_retrieval_matches_meaning():
     assert data["retrieval"] == "hybrid"
     assert data["strategy"]["id"] == "transition-ritual"
     assert data["strategy"]["why"]["meaning"] > 0.3
+
+
+def test_llm_steps_in_any_shape_are_read_as_text():
+    from app.sequencer import _step_text
+
+    assert _step_text("Open your notes") == "Open your notes"
+    assert _step_text('{"title": "Find a quiet space", "description": "settle in"}') == "Find a quiet space"
+    assert _step_text({"step": "Write one line"}) == "Write one line"
+    assert _step_text("{not json") == ""

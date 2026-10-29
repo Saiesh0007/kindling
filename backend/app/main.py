@@ -83,8 +83,8 @@ class SequenceResponse(BaseModel):
 @app.get("/api/health")
 async def health():
     available = await sequencer.llm_available(wait=True)
-    return {"status": "ok", "llm": available, "model": sequencer.MODEL if available else None,
-            "engine": f"ollama:{sequencer.MODEL}" if available else "built-in",
+    return {"status": "ok", "llm": available, "model": sequencer.model(),
+            "engine": f"ollama:{sequencer.model()}" if available else "built-in",
             "retrieval": index.mode, "embedder": "all-MiniLM-L6-v2" if index.semantic.ready else None}
 
 
@@ -112,11 +112,13 @@ async def sequence(req: SequenceRequest):
         strategy, why = next(((d, w) for d, w in same if d["id"] == req.exclude[-1]), (strategy, why))
 
     result = None
-    if req.use_llm and await sequencer.llm_available():
+    # "Smaller" should feel instant, so it always uses the built-in writer.
+    llm = req.use_llm and req.mode != "smaller" and await sequencer.llm_available() and sequencer.model()
+    if llm:
         result = await sequencer.llm_steps(req.task, energy, strategy, req.mode, req.current_step)
     if result:
         message, steps = result
-        engine = f"ollama:{sequencer.MODEL}"
+        engine = f"ollama:{llm}"
     else:
         steps = sequencer.builtin_steps(req.task, energy, strategy, req.mode, req.current_step)
         message = ""

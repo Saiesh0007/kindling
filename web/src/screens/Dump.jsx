@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, Loader2, Mic, MicOff } from 'lucide-react'
 import { Screen, TiltCard } from '../components/ui.jsx'
 import { useSpeech } from '../lib/speech.js'
@@ -13,6 +13,13 @@ const EXAMPLES = [
 export default function Dump({ initial = '', loading, onSubmit, onBack }) {
   const [text, setText] = useState(initial)
   const speech = useSpeech((t) => setText((v) => (v ? `${v} ${t}` : t)))
+  // The built-in writer answers instantly; a local AI model on a laptop CPU can take 15-20 s.
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (!loading) return setSlow(false)
+    const id = setTimeout(() => setSlow(true), 4000)
+    return () => clearTimeout(id)
+  }, [loading])
 
   return (
     <Screen className="pt-[32vh]">
@@ -54,6 +61,7 @@ export default function Dump({ initial = '', loading, onSubmit, onBack }) {
       <button disabled={!text.trim() || loading} onClick={() => onSubmit(text)} className="btn-primary mt-6 py-4 text-lg">
         {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Finding a tiny way in…</> : 'Find my first tiny step'}
       </button>
+      {slow && <p className="mt-3 text-center text-sm text-slate-400" role="status">Your local AI is writing the steps on this laptop. It can take about 15 seconds.</p>}
     </Screen>
   )
 }
